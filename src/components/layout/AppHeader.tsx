@@ -5,6 +5,7 @@ const pageTitles: Record<string, string> = {
   "/": "Dashboard",
   "/clientes": "Clientes",
   "/ordens": "Ordens de Serviço",
+  "/ordens/nova": "Nova Ordem de Serviço",
   "/checklists": "Checklists Técnicos",
   "/estoque": "Estoque & Peças",
   "/garantias": "Garantias",
