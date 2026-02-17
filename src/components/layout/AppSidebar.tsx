@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   Users,
   Wrench,
-  ClipboardCheck,
   Package,
   Shield,
   BarChart3,
@@ -12,7 +11,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  LogOut,
+  DollarSign,
 } from "lucide-react";
 import logo from "@/assets/shieldos-logo.jpeg";
 
@@ -20,7 +19,7 @@ const navItems = [
   { path: "/", icon: LayoutDashboard, label: "Dashboard" },
   { path: "/clientes", icon: Users, label: "Clientes" },
   { path: "/ordens", icon: Wrench, label: "Ordens de Serviço" },
-  { path: "/checklists", icon: ClipboardCheck, label: "Checklists" },
+  { path: "/financeiro", icon: DollarSign, label: "Financeiro" },
   { path: "/estoque", icon: Package, label: "Estoque" },
   { path: "/garantias", icon: Shield, label: "Garantias" },
   { path: "/relatorios", icon: BarChart3, label: "Relatórios" },

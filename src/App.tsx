@@ -9,6 +9,9 @@ import Customers from "@/pages/Customers";
 import RepairOrders from "@/pages/RepairOrders";
 import NewRepairOrder from "@/pages/NewRepairOrder";
 import Inventory from "@/pages/Inventory";
+import Financial from "@/pages/Financial";
+import Warranties from "@/pages/Warranties";
+import Reports from "@/pages/Reports";
 import SettingsPage from "@/pages/SettingsPage";
 import Placeholder from "@/pages/Placeholder";
 import NotFound from "./pages/NotFound";
@@ -28,9 +31,9 @@ const App = () => (
             <Route path="/ordens" element={<RepairOrders />} />
             <Route path="/ordens/nova" element={<NewRepairOrder />} />
             <Route path="/estoque" element={<Inventory />} />
-            <Route path="/checklists" element={<Placeholder />} />
-            <Route path="/garantias" element={<Placeholder />} />
-            <Route path="/relatorios" element={<Placeholder />} />
+            <Route path="/financeiro" element={<Financial />} />
+            <Route path="/garantias" element={<Warranties />} />
+            <Route path="/relatorios" element={<Reports />} />
             <Route path="/comunicacao" element={<Placeholder />} />
             <Route path="/configuracoes" element={<SettingsPage />} />
           </Route>

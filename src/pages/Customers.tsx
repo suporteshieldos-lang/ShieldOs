@@ -1,22 +1,67 @@
 import { useState } from "react";
-import { Search, Plus, Phone, Mail, Smartphone } from "lucide-react";
+import { Search, Plus, Phone, Mail, DollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { useAppStore, formatCurrency, getOrderTotal } from "@/store/appStore";
 
-const customers = [
-  { id: 1, name: "Carlos Silva", phone: "(11) 99234-5678", email: "carlos@email.com", devices: 3, orders: 5, lastVisit: "16/02/2026" },
-  { id: 2, name: "Maria Santos", phone: "(11) 98765-4321", email: "maria@email.com", devices: 1, orders: 2, lastVisit: "15/02/2026" },
-  { id: 3, name: "João Oliveira", phone: "(21) 97654-3210", email: "joao@email.com", devices: 2, orders: 4, lastVisit: "15/02/2026" },
-  { id: 4, name: "Ana Costa", phone: "(31) 96543-2109", email: "ana@email.com", devices: 1, orders: 1, lastVisit: "14/02/2026" },
-  { id: 5, name: "Pedro Souza", phone: "(41) 95432-1098", email: "pedro@email.com", devices: 4, orders: 7, lastVisit: "14/02/2026" },
-  { id: 6, name: "Lucia Mendes", phone: "(51) 94321-0987", email: "lucia@email.com", devices: 2, orders: 3, lastVisit: "13/02/2026" },
-];
+interface CustomerSummary {
+  name: string;
+  cpf: string;
+  phone: string;
+  email: string;
+  totalOrders: number;
+  totalSpent: number;
+  activeWarranties: number;
+  lastVisit: string;
+}
 
 export default function Customers() {
+  const { orders } = useAppStore();
   const [search, setSearch] = useState("");
+
+  // Derive customers from orders
+  const customerMap = new Map<string, CustomerSummary>();
+  orders.forEach((o) => {
+    const key = o.customerCpf || o.customerName;
+    const existing = customerMap.get(key);
+    const total = o.paymentStatus === "pago" ? getOrderTotal(o) : 0;
+
+    // Check warranty
+    let hasActiveWarranty = false;
+    if (o.completedDate && o.status === "delivered") {
+      const parts = o.completedDate.split("/");
+      if (parts.length === 3) {
+        const completed = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        const expiry = new Date(completed);
+        expiry.setDate(expiry.getDate() + o.warrantyDays);
+        hasActiveWarranty = expiry.getTime() > Date.now();
+      }
+    }
+
+    if (existing) {
+      existing.totalOrders += 1;
+      existing.totalSpent += total;
+      if (hasActiveWarranty) existing.activeWarranties += 1;
+      // Keep latest date
+      existing.lastVisit = o.date;
+    } else {
+      customerMap.set(key, {
+        name: o.customerName,
+        cpf: o.customerCpf,
+        phone: o.customerPhone,
+        email: o.customerEmail,
+        totalOrders: 1,
+        totalSpent: total,
+        activeWarranties: hasActiveWarranty ? 1 : 0,
+        lastVisit: o.date,
+      });
+    }
+  });
+
+  const customers = Array.from(customerMap.values());
   const filtered = customers.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase())
+    c.name.toLowerCase().includes(search.toLowerCase()) || c.cpf.includes(search)
   );
 
   return (
@@ -26,7 +71,7 @@ export default function Customers() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Buscar cliente..."
+            placeholder="Buscar por nome ou CPF..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-10 w-full rounded-lg border border-input bg-card pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 sm:w-80"
@@ -41,7 +86,7 @@ export default function Customers() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {filtered.map((customer, i) => (
           <motion.div
-            key={customer.id}
+            key={customer.cpf || customer.name}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
@@ -50,6 +95,7 @@ export default function Customers() {
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="font-semibold text-foreground">{customer.name}</h3>
+                {customer.cpf && <p className="text-xs text-muted-foreground">CPF: {customer.cpf}</p>}
                 <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Phone className="h-3.5 w-3.5" />
@@ -61,17 +107,28 @@ export default function Customers() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <Smartphone className="h-4 w-4" />
-                <span className="text-sm font-medium">{customer.devices}</span>
+              <div className="text-right">
+                <div className="flex items-center gap-1 text-sm font-semibold text-foreground">
+                  <DollarSign className="h-3.5 w-3.5" />
+                  {formatCurrency(customer.totalSpent)}
+                </div>
+                <p className="text-xs text-muted-foreground">total gasto</p>
               </div>
             </div>
             <div className="mt-4 flex items-center justify-between">
-              <Badge variant="secondary">{customer.orders} ordens</Badge>
-              <span className="text-xs text-muted-foreground">Última visita: {customer.lastVisit}</span>
+              <div className="flex gap-2">
+                <Badge variant="secondary">{customer.totalOrders} OS</Badge>
+                {customer.activeWarranties > 0 && (
+                  <Badge variant="outline" className="text-success border-success/30">{customer.activeWarranties} garantia(s)</Badge>
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground">Última: {customer.lastVisit}</span>
             </div>
           </motion.div>
         ))}
+        {filtered.length === 0 && (
+          <div className="col-span-full py-12 text-center text-muted-foreground">Nenhum cliente encontrado.</div>
+        )}
       </div>
     </div>
   );
