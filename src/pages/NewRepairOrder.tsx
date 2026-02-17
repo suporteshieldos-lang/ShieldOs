@@ -1,9 +1,9 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, FileText, User, Smartphone, ClipboardCheck, Wrench, Camera, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, FileText, User, Smartphone, ClipboardCheck, Wrench, Camera, X, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAppStore, getChecklistItems, RepairOrder } from "@/store/appStore";
+import { useAppStore, getChecklistItems, RepairOrder, formatCurrency, parseCurrency, PaymentMethod, PaymentStatus } from "@/store/appStore";
 import { generateRepairOrderPDF } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 
@@ -12,6 +12,7 @@ const steps = [
   { icon: Smartphone, label: "Dispositivo" },
   { icon: ClipboardCheck, label: "Checklist" },
   { icon: Wrench, label: "Problema" },
+  { icon: DollarSign, label: "Financeiro" },
   { icon: FileText, label: "Revisão" },
 ];
 
@@ -47,14 +48,24 @@ export default function NewRepairOrder() {
     cost: "",
     estimatedDelivery: "",
     termAccepted: false,
+    // Financial
+    serviceCost: "",
+    discount: "",
+    paymentMethod: "pix" as PaymentMethod,
+    paymentStatus: "pendente" as PaymentStatus,
   });
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
+
+  const [selectedParts, setSelectedParts] = useState<{ inventoryId: string; name: string; qty: number; unitCost: number }[]>([]);
 
   const updateForm = (field: string, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const { inventory } = useAppStore();
   const checklistItems = getChecklistItems(form.deviceType);
+
+  const partsCostTotal = selectedParts.reduce((sum, p) => sum + p.unitCost * p.qty, 0);
 
   const canNext = () => {
     switch (step) {
@@ -62,7 +73,8 @@ export default function NewRepairOrder() {
       case 1: return form.brand && form.model;
       case 2: return true;
       case 3: return form.reportedProblem;
-      case 4: return form.termAccepted;
+      case 4: return true; // financial is optional
+      case 5: return form.termAccepted;
       default: return true;
     }
   };
@@ -92,6 +104,8 @@ export default function NewRepairOrder() {
   const handleSubmit = async () => {
     const orderId = `OS-${nextOrderNumber}`;
     const today = new Date().toLocaleDateString("pt-BR");
+    const svcCost = parseCurrency(form.serviceCost);
+    const disc = parseCurrency(form.discount);
     const order: RepairOrder = {
       id: orderId,
       customerName: form.customerName,
@@ -110,16 +124,29 @@ export default function NewRepairOrder() {
       reportedProblem: form.reportedProblem,
       technicianDiagnosis: "",
       repairActions: "",
-      partsUsed: "",
-      cost: form.cost,
+      serviceCost: svcCost,
+      partsCost: partsCostTotal,
+      discount: disc,
+      paymentMethod: form.paymentMethod,
+      paymentStatus: form.paymentStatus,
+      paymentDate: form.paymentStatus === "pago" ? today : "",
+      usedParts: selectedParts,
+      cost: form.serviceCost || "-",
+      partsUsed: selectedParts.map((p) => p.name).join(", "),
       estimatedDelivery: form.estimatedDelivery,
       technician: form.technician,
       status: "received",
       date: today,
+      completedDate: "",
+      warrantyDays: 90,
       termAccepted: form.termAccepted,
       entryPhotos,
       exitPhotos,
     };
+    // Deduct stock
+    selectedParts.forEach((p) => {
+      useAppStore.getState().deductStock(p.inventoryId, p.qty);
+    });
     addOrder(order);
     await generateRepairOrderPDF(order, responsibilityTerm, companyInfo);
     toast.success(`Ordem ${orderId} criada com sucesso! PDF gerado.`);
@@ -365,16 +392,92 @@ export default function NewRepairOrder() {
                   <label className={labelClass}>Previsão de entrega</label>
                   <input className={inputClass} type="date" value={form.estimatedDelivery} onChange={(e) => updateForm("estimatedDelivery", e.target.value)} />
                 </div>
-                <div>
-                  <label className={labelClass}>Valor estimado</label>
-                  <input className={inputClass} placeholder="R$ 0,00" value={form.cost} onChange={(e) => updateForm("cost", e.target.value)} />
-                </div>
               </div>
             </div>
           )}
 
-          {/* Step 4: Revisão */}
+          {/* Step 4: Financeiro */}
           {step === 4 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-foreground">Dados Financeiros</h3>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={labelClass}>Valor do serviço</label>
+                  <input className={inputClass} placeholder="R$ 0,00" value={form.serviceCost} onChange={(e) => updateForm("serviceCost", e.target.value)} />
+                </div>
+                <div>
+                  <label className={labelClass}>Desconto</label>
+                  <input className={inputClass} placeholder="R$ 0,00" value={form.discount} onChange={(e) => updateForm("discount", e.target.value)} />
+                </div>
+                <div>
+                  <label className={labelClass}>Forma de pagamento</label>
+                  <select className={inputClass} value={form.paymentMethod} onChange={(e) => updateForm("paymentMethod", e.target.value)}>
+                    <option value="pix">Pix</option>
+                    <option value="dinheiro">Dinheiro</option>
+                    <option value="cartao">Cartão</option>
+                    <option value="outro">Outro</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Status do pagamento</label>
+                  <select className={inputClass} value={form.paymentStatus} onChange={(e) => updateForm("paymentStatus", e.target.value)}>
+                    <option value="pendente">Pendente</option>
+                    <option value="pago">Pago</option>
+                    <option value="parcial">Parcial</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Parts selection */}
+              <div className="space-y-3 border-t border-border pt-4">
+                <h4 className="text-sm font-semibold text-foreground">Peças Utilizadas</h4>
+                <p className="text-xs text-muted-foreground">Selecione as peças do estoque usadas neste reparo. A baixa será automática.</p>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {inventory.filter((i) => i.qty > 0).map((item) => {
+                    const selected = selectedParts.find((p) => p.inventoryId === item.id);
+                    return (
+                      <label key={item.id} className={`flex items-center justify-between gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${selected ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/30"}`}>
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" checked={!!selected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedParts((prev) => [...prev, { inventoryId: item.id, name: item.name, qty: 1, unitCost: item.costPrice }]);
+                              } else {
+                                setSelectedParts((prev) => prev.filter((p) => p.inventoryId !== item.id));
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-input accent-primary"
+                          />
+                          <div>
+                            <span className="text-sm text-foreground">{item.name}</span>
+                            <span className="ml-2 text-xs text-muted-foreground">({item.qty} em estoque • {formatCurrency(item.costPrice)})</span>
+                          </div>
+                        </div>
+                        {selected && (
+                          <input type="number" min="1" max={item.qty} value={selected.qty}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              const qty = Math.min(parseInt(e.target.value) || 1, item.qty);
+                              setSelectedParts((prev) => prev.map((p) => p.inventoryId === item.id ? { ...p, qty } : p));
+                            }}
+                            className="h-8 w-16 rounded border border-input bg-card px-2 text-center text-sm"
+                          />
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+                {selectedParts.length > 0 && (
+                  <div className="text-sm font-medium text-foreground text-right">
+                    Custo total de peças: {formatCurrency(partsCostTotal)}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Revisão */}
+          {step === 5 && (
             <div className="space-y-5">
               <h3 className="text-lg font-semibold text-foreground">Revisão & Termo de Responsabilidade</h3>
 
