@@ -1,5 +1,21 @@
 import { create } from "zustand";
 
+export interface CompanyInfo {
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  cnpj: string;
+}
+
+export const DEFAULT_COMPANY_INFO: CompanyInfo = {
+  name: "Minha Assistência Técnica",
+  address: "Rua Exemplo, 123 - Centro - São Paulo/SP",
+  phone: "(11) 99999-9999",
+  email: "contato@minhaassistencia.com.br",
+  cnpj: "",
+};
+
 export interface RepairOrder {
   id: string;
   // Customer
@@ -32,6 +48,9 @@ export interface RepairOrder {
   date: string;
   // Responsibility term accepted
   termAccepted: boolean;
+  // Photos (base64 data URLs)
+  entryPhotos: string[];
+  exitPhotos: string[];
 }
 
 export const DEFAULT_RESPONSIBILITY_TERM = `TERMO DE RESPONSABILIDADE - RETIRADA DE EQUIPAMENTO
@@ -117,6 +136,8 @@ interface AppStore {
   addOrder: (order: RepairOrder) => void;
   responsibilityTerm: string;
   setResponsibilityTerm: (term: string) => void;
+  companyInfo: CompanyInfo;
+  setCompanyInfo: (info: CompanyInfo) => void;
   nextOrderNumber: number;
 }
 
@@ -126,23 +147,25 @@ export const useAppStore = create<AppStore>((set, get) => ({
       id: "OS-2401", customerName: "Carlos Silva", customerPhone: "(11) 99234-5678", customerEmail: "carlos@email.com", customerCpf: "123.456.789-00",
       deviceType: "phone", brand: "Apple", model: "iPhone 15 Pro", serialImei: "353456789012345", devicePassword: "1234", deviceColor: "Titânio Natural", accessories: "Capinha, carregador",
       conditionNotes: "Tela trincada lado direito", checklist: {}, reportedProblem: "Tela quebrada", technicianDiagnosis: "", repairActions: "", partsUsed: "", cost: "R$ 450,00",
-      estimatedDelivery: "19/02/2026", technician: "Ricardo", status: "repairing", date: "16/02/2026", termAccepted: true
+      estimatedDelivery: "19/02/2026", technician: "Ricardo", status: "repairing", date: "16/02/2026", termAccepted: true, entryPhotos: [], exitPhotos: []
     },
     {
       id: "OS-2402", customerName: "Maria Santos", customerPhone: "(11) 98765-4321", customerEmail: "maria@email.com", customerCpf: "987.654.321-00",
       deviceType: "notebook", brand: "Apple", model: "MacBook Air M3", serialImei: "C02X1234ABCD", devicePassword: "", deviceColor: "Prateado", accessories: "Carregador MagSafe",
       conditionNotes: "Sem marcas visíveis", checklist: {}, reportedProblem: "Não liga", technicianDiagnosis: "", repairActions: "", partsUsed: "", cost: "-",
-      estimatedDelivery: "-", technician: "Felipe", status: "diagnosing", date: "15/02/2026", termAccepted: true
+      estimatedDelivery: "-", technician: "Felipe", status: "diagnosing", date: "15/02/2026", termAccepted: true, entryPhotos: [], exitPhotos: []
     },
     {
       id: "OS-2403", customerName: "João Oliveira", customerPhone: "(21) 97654-3210", customerEmail: "joao@email.com", customerCpf: "456.789.123-00",
       deviceType: "phone", brand: "Samsung", model: "Samsung S24", serialImei: "354567890123456", devicePassword: "0000", deviceColor: "Preto", accessories: "Nenhum",
       conditionNotes: "Bateria estufando", checklist: {}, reportedProblem: "Bateria inchada", technicianDiagnosis: "", repairActions: "", partsUsed: "", cost: "R$ 280,00",
-      estimatedDelivery: "20/02/2026", technician: "Ricardo", status: "waiting_parts", date: "15/02/2026", termAccepted: true
+      estimatedDelivery: "20/02/2026", technician: "Ricardo", status: "waiting_parts", date: "15/02/2026", termAccepted: true, entryPhotos: [], exitPhotos: []
     },
   ],
   addOrder: (order) => set((state) => ({ orders: [order, ...state.orders], nextOrderNumber: state.nextOrderNumber + 1 })),
   responsibilityTerm: DEFAULT_RESPONSIBILITY_TERM,
   setResponsibilityTerm: (term) => set({ responsibilityTerm: term }),
+  companyInfo: DEFAULT_COMPANY_INFO,
+  setCompanyInfo: (info) => set({ companyInfo: info }),
   nextOrderNumber: 2407,
 }));

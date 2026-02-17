@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, FileText, User, Smartphone, ClipboardCheck, Wrench } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, FileText, User, Smartphone, ClipboardCheck, Wrench, Camera, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore, getChecklistItems, RepairOrder } from "@/store/appStore";
@@ -23,8 +23,12 @@ const deviceTypes = [
 
 export default function NewRepairOrder() {
   const navigate = useNavigate();
-  const { addOrder, nextOrderNumber, responsibilityTerm } = useAppStore();
+  const { addOrder, nextOrderNumber, responsibilityTerm, companyInfo } = useAppStore();
   const [step, setStep] = useState(0);
+  const entryPhotoRef = useRef<HTMLInputElement>(null);
+  const exitPhotoRef = useRef<HTMLInputElement>(null);
+  const [entryPhotos, setEntryPhotos] = useState<string[]>([]);
+  const [exitPhotos, setExitPhotos] = useState<string[]>([]);
   const [form, setForm] = useState({
     customerName: "",
     customerPhone: "",
@@ -63,7 +67,29 @@ export default function NewRepairOrder() {
     }
   };
 
-  const handleSubmit = () => {
+  const handlePhotoUpload = (type: "entry" | "exit", files: FileList | null) => {
+    if (!files) return;
+    const setter = type === "entry" ? setEntryPhotos : setExitPhotos;
+    const current = type === "entry" ? entryPhotos : exitPhotos;
+    const remaining = 5 - current.length;
+    if (remaining <= 0) { toast.error("Máximo de 5 fotos atingido."); return; }
+    const toProcess = Array.from(files).slice(0, remaining);
+    toProcess.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setter((prev) => [...prev, result]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePhoto = (type: "entry" | "exit", index: number) => {
+    const setter = type === "entry" ? setEntryPhotos : setExitPhotos;
+    setter((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
     const orderId = `OS-${nextOrderNumber}`;
     const today = new Date().toLocaleDateString("pt-BR");
     const order: RepairOrder = {
@@ -91,9 +117,11 @@ export default function NewRepairOrder() {
       status: "received",
       date: today,
       termAccepted: form.termAccepted,
+      entryPhotos,
+      exitPhotos,
     };
     addOrder(order);
-    generateRepairOrderPDF(order, responsibilityTerm);
+    await generateRepairOrderPDF(order, responsibilityTerm, companyInfo);
     toast.success(`Ordem ${orderId} criada com sucesso! PDF gerado.`);
     navigate("/ordens");
   };
@@ -232,33 +260,85 @@ export default function NewRepairOrder() {
             </div>
           )}
 
-          {/* Step 2: Checklist */}
+          {/* Step 2: Checklist + Fotos */}
           {step === 2 && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-foreground">Checklist de Entrada</h3>
-                <span className="text-xs text-muted-foreground">
-                  {Object.values(checklist).filter(Boolean).length}/{checklistItems.length} itens OK
-                </span>
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-foreground">Checklist de Entrada</h3>
+                  <span className="text-xs text-muted-foreground">
+                    {Object.values(checklist).filter(Boolean).length}/{checklistItems.length} itens OK
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">Marque os itens que estão funcionando corretamente.</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {checklistItems.map((item) => (
+                    <label
+                      key={item}
+                      className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                        checklist[item] ? "border-success/50 bg-success/5" : "border-border hover:border-primary/30"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!checklist[item]}
+                        onChange={(e) => setChecklist((prev) => ({ ...prev, [item]: e.target.checked }))}
+                        className="h-4 w-4 rounded border-input text-primary accent-primary"
+                      />
+                      <span className="text-sm text-foreground">{item}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground">Marque os itens que estão funcionando corretamente.</p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {checklistItems.map((item) => (
-                  <label
-                    key={item}
-                    className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
-                      checklist[item] ? "border-success/50 bg-success/5" : "border-border hover:border-primary/30"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={!!checklist[item]}
-                      onChange={(e) => setChecklist((prev) => ({ ...prev, [item]: e.target.checked }))}
-                      className="h-4 w-4 rounded border-input text-primary accent-primary"
-                    />
-                    <span className="text-sm text-foreground">{item}</span>
-                  </label>
-                ))}
+
+              {/* Registro Fotográfico */}
+              <div className="space-y-4 border-t border-border pt-4">
+                <div className="flex items-center gap-3">
+                  <Camera className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold text-foreground">Registro Fotográfico</h3>
+                </div>
+
+                {/* Entry Photos */}
+                <div className="space-y-2">
+                  <label className={labelClass}>Fotos de Entrada do Aparelho (até 5)</label>
+                  <input ref={entryPhotoRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handlePhotoUpload("entry", e.target.files)} />
+                  <div className="grid grid-cols-2 gap-3">
+                    {entryPhotos.map((photo, i) => (
+                      <div key={i} className="relative group rounded-lg overflow-hidden border border-border">
+                        <img src={photo} alt={`Entrada ${i + 1}`} className="w-full h-32 object-cover" />
+                        <button onClick={() => removePhoto("entry", i)} className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                    {entryPhotos.length < 5 && (
+                      <button onClick={() => entryPhotoRef.current?.click()} className="flex items-center justify-center h-32 rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors text-muted-foreground hover:text-primary">
+                        <Camera className="h-6 w-6" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Exit Photos */}
+                <div className="space-y-2">
+                  <label className={labelClass}>Fotos de Saída do Aparelho (até 5)</label>
+                  <input ref={exitPhotoRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handlePhotoUpload("exit", e.target.files)} />
+                  <div className="grid grid-cols-2 gap-3">
+                    {exitPhotos.map((photo, i) => (
+                      <div key={i} className="relative group rounded-lg overflow-hidden border border-border">
+                        <img src={photo} alt={`Saída ${i + 1}`} className="w-full h-32 object-cover" />
+                        <button onClick={() => removePhoto("exit", i)} className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                    {exitPhotos.length < 5 && (
+                      <button onClick={() => exitPhotoRef.current?.click()} className="flex items-center justify-center h-32 rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors text-muted-foreground hover:text-primary">
+                        <Camera className="h-6 w-6" />
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
