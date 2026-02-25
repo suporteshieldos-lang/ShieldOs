@@ -45,7 +45,6 @@ export default function Warranties() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h2 className="text-xl font-semibold text-foreground">Garantias</h2>
 
       <div className="grid grid-cols-3 gap-3">
         <div className="glass-card rounded-xl p-4 text-center">

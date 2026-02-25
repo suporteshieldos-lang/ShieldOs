@@ -1,10 +1,39 @@
-import { useState, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, FileText, User, Smartphone, ClipboardCheck, Wrench, Camera, X, DollarSign } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  FileText,
+  User,
+  Smartphone,
+  Laptop,
+  Tablet,
+  Printer,
+  ClipboardCheck,
+  Wrench,
+  Camera,
+  X,
+  DollarSign,
+  Hash,
+  Type,
+  Grid3X3,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAppStore, getChecklistItems, RepairOrder, formatCurrency, parseCurrency, PaymentMethod, PaymentStatus } from "@/store/appStore";
+import {
+  useAppStore,
+  getChecklistItems,
+  RepairOrder,
+  formatCurrency,
+  parseCurrency,
+  PaymentMethod,
+  PaymentStatus,
+  DEFAULT_CUSTOMER,
+} from "@/store/appStore";
 import { generateRepairOrderPDF } from "@/lib/pdfGenerator";
+import { createId } from "@/lib/id";
 import { toast } from "sonner";
 
 const steps = [
@@ -17,25 +46,38 @@ const steps = [
 ];
 
 const deviceTypes = [
-  { value: "phone", label: "Smartphone", icon: "📱" },
-  { value: "notebook", label: "Notebook", icon: "💻" },
-  { value: "tablet", label: "Tablet", icon: "📟" },
-];
+  { value: "phone", label: "Smartphone", icon: Smartphone },
+  { value: "notebook", label: "Notebook", icon: Laptop },
+  { value: "tablet", label: "Tablet", icon: Tablet },
+  { value: "printer", label: "Impressora", icon: Printer },
+] as const;
 
 export default function NewRepairOrder() {
   const navigate = useNavigate();
-  const { addOrder, nextOrderNumber, responsibilityTerm, companyInfo } = useAppStore();
+  const { addOrder, addCustomer, nextOrderNumber, responsibilityTerm, companyInfo, inventory, customers } = useAppStore();
+
   const [step, setStep] = useState(0);
-  const entryPhotoRef = useRef<HTMLInputElement>(null);
-  const exitPhotoRef = useRef<HTMLInputElement>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState(DEFAULT_CUSTOMER.id);
+  const [quickCustomerOpen, setQuickCustomerOpen] = useState(false);
+  const [quickCustomerForm, setQuickCustomerForm] = useState({
+    name: "",
+    cpf: "",
+    phone: "",
+    email: "",
+  });
   const [entryPhotos, setEntryPhotos] = useState<string[]>([]);
-  const [exitPhotos, setExitPhotos] = useState<string[]>([]);
+  const [checklist, setChecklist] = useState<Record<string, boolean>>({});
+  const [passwordType, setPasswordType] = useState<"none" | "numeric" | "text" | "pattern">("none");
+  const [patternPoints, setPatternPoints] = useState<number[]>([]);
+  const [selectedParts, setSelectedParts] = useState<{ inventoryId: string; name: string; qty: number; unitCost: number }[]>([]);
+  const entryPhotoRef = useRef<HTMLInputElement>(null);
+
   const [form, setForm] = useState({
-    customerName: "",
-    customerPhone: "",
-    customerEmail: "",
-    customerCpf: "",
-    deviceType: "phone" as "phone" | "notebook" | "tablet",
+    customerName: DEFAULT_CUSTOMER.name,
+    customerPhone: DEFAULT_CUSTOMER.phone,
+    customerEmail: DEFAULT_CUSTOMER.email,
+    customerCpf: DEFAULT_CUSTOMER.cpf,
+    deviceType: "phone" as "phone" | "notebook" | "tablet" | "printer",
     brand: "",
     model: "",
     serialImei: "",
@@ -45,67 +87,141 @@ export default function NewRepairOrder() {
     conditionNotes: "",
     reportedProblem: "",
     technician: "",
-    cost: "",
     estimatedDelivery: "",
     termAccepted: false,
-    // Financial
     serviceCost: "",
     discount: "",
     paymentMethod: "pix" as PaymentMethod,
     paymentStatus: "pendente" as PaymentStatus,
   });
-  const [checklist, setChecklist] = useState<Record<string, boolean>>({});
 
-  const [selectedParts, setSelectedParts] = useState<{ inventoryId: string; name: string; qty: number; unitCost: number }[]>([]);
+  const checklistItems = useMemo(() => getChecklistItems(form.deviceType), [form.deviceType]);
+  const partsCostTotal = selectedParts.reduce((sum, part) => sum + part.unitCost * part.qty, 0);
+  const availableParts = inventory.filter((item) => item.qty > 0);
 
   const updateForm = (field: string, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const { inventory } = useAppStore();
-  const checklistItems = getChecklistItems(form.deviceType);
+  const selectCustomer = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    const customer = customers.find((item) => item.id === customerId);
+    if (!customer) return;
+    setForm((prev) => ({
+      ...prev,
+      customerName: customer.name,
+      customerPhone: customer.phone || "Não informado",
+      customerEmail: customer.email || "",
+      customerCpf: customer.cpf || "",
+    }));
+  };
 
-  const partsCostTotal = selectedParts.reduce((sum, p) => sum + p.unitCost * p.qty, 0);
+  const handleQuickCustomerSave = () => {
+    if (!quickCustomerForm.name || !quickCustomerForm.phone) {
+      toast.error("Preencha nome e telefone do cliente.");
+      return;
+    }
+    const normalizedName = quickCustomerForm.name.toLowerCase().trim();
+    const normalizedPhone = quickCustomerForm.phone.replace(/\D/g, "");
+    const existing = customers.find(
+      (customer) =>
+        customer.name.toLowerCase().trim() === normalizedName &&
+        customer.phone.replace(/\D/g, "") === normalizedPhone
+    );
+    const id = existing?.id || createId();
+    const customerPayload = {
+      id,
+      name: quickCustomerForm.name,
+      cpf: quickCustomerForm.cpf,
+      phone: quickCustomerForm.phone,
+      email: quickCustomerForm.email,
+      createdAt: new Date().toLocaleDateString("pt-BR"),
+    };
+    addCustomer(customerPayload);
+    setSelectedCustomerId(id);
+    setForm((prev) => ({
+      ...prev,
+      customerName: customerPayload.name,
+      customerPhone: customerPayload.phone,
+      customerEmail: customerPayload.email,
+      customerCpf: customerPayload.cpf,
+    }));
+    setQuickCustomerForm({ name: "", cpf: "", phone: "", email: "" });
+    setQuickCustomerOpen(false);
+    toast.success("Cliente cadastrado rapidamente.");
+  };
 
   const canNext = () => {
     switch (step) {
-      case 0: return form.customerName && form.customerPhone;
-      case 1: return form.brand && form.model;
-      case 2: return true;
-      case 3: return form.reportedProblem;
-      case 4: return true; // financial is optional
-      case 5: return form.termAccepted;
-      default: return true;
+      case 0:
+        return Boolean(form.customerName && form.customerPhone);
+      case 1:
+        return Boolean(form.brand && form.model);
+      case 2:
+        return true;
+      case 3:
+        return Boolean(form.reportedProblem);
+      case 4:
+        return true;
+      case 5:
+        return form.termAccepted;
+      default:
+        return true;
     }
   };
 
-  const handlePhotoUpload = (type: "entry" | "exit", files: FileList | null) => {
+  const handleEntryPhotoUpload = (files: FileList | null) => {
     if (!files) return;
-    const setter = type === "entry" ? setEntryPhotos : setExitPhotos;
-    const current = type === "entry" ? entryPhotos : exitPhotos;
-    const remaining = 5 - current.length;
-    if (remaining <= 0) { toast.error("Máximo de 5 fotos atingido."); return; }
+    const remaining = 5 - entryPhotos.length;
+    if (remaining <= 0) {
+      toast.error("Máximo de 5 fotos de entrada atingido.");
+      return;
+    }
     const toProcess = Array.from(files).slice(0, remaining);
     toProcess.forEach((file) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setter((prev) => [...prev, result]);
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setEntryPhotos((prev) => [...prev, result]);
       };
       reader.readAsDataURL(file);
     });
   };
 
-  const removePhoto = (type: "entry" | "exit", index: number) => {
-    const setter = type === "entry" ? setEntryPhotos : setExitPhotos;
-    setter((prev) => prev.filter((_, i) => i !== index));
+  const removeEntryPhoto = (index: number) => {
+    setEntryPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
     const orderId = `OS-${nextOrderNumber}`;
     const today = new Date().toLocaleDateString("pt-BR");
-    const svcCost = parseCurrency(form.serviceCost);
-    const disc = parseCurrency(form.discount);
+    const serviceCost = parseCurrency(form.serviceCost);
+    const discount = parseCurrency(form.discount);
+
+    addCustomer({
+      id: selectedCustomerId === DEFAULT_CUSTOMER.id ? createId() : selectedCustomerId,
+      name: form.customerName,
+      cpf: form.customerCpf,
+      phone: form.customerPhone,
+      email: form.customerEmail,
+      createdAt: today,
+    });
+
+    const finalDevicePassword =
+      passwordType === "pattern"
+        ? patternPoints.length
+          ? `Padrão: ${patternPoints.join("-")}`
+          : ""
+        : passwordType === "numeric"
+          ? form.devicePassword.trim()
+            ? `Numérica: ${form.devicePassword.trim()}`
+            : ""
+          : passwordType === "text"
+            ? form.devicePassword.trim()
+              ? `Letras: ${form.devicePassword.trim()}`
+              : ""
+            : form.devicePassword.trim();
+
     const order: RepairOrder = {
       id: orderId,
       customerName: form.customerName,
@@ -116,7 +232,7 @@ export default function NewRepairOrder() {
       brand: form.brand,
       model: form.model,
       serialImei: form.serialImei,
-      devicePassword: form.devicePassword,
+      devicePassword: finalDevicePassword,
       deviceColor: form.deviceColor,
       accessories: form.accessories,
       conditionNotes: form.conditionNotes,
@@ -124,15 +240,15 @@ export default function NewRepairOrder() {
       reportedProblem: form.reportedProblem,
       technicianDiagnosis: "",
       repairActions: "",
-      serviceCost: svcCost,
+      serviceCost,
       partsCost: partsCostTotal,
-      discount: disc,
+      discount,
       paymentMethod: form.paymentMethod,
       paymentStatus: form.paymentStatus,
       paymentDate: form.paymentStatus === "pago" ? today : "",
       usedParts: selectedParts,
       cost: form.serviceCost || "-",
-      partsUsed: selectedParts.map((p) => p.name).join(", "),
+      partsUsed: selectedParts.map((part) => part.name).join(", "),
       estimatedDelivery: form.estimatedDelivery,
       technician: form.technician,
       status: "received",
@@ -141,24 +257,33 @@ export default function NewRepairOrder() {
       warrantyDays: 90,
       termAccepted: form.termAccepted,
       entryPhotos,
-      exitPhotos,
+      exitPhotos: [],
     };
-    // Deduct stock
-    selectedParts.forEach((p) => {
-      useAppStore.getState().deductStock(p.inventoryId, p.qty);
-    });
-    addOrder(order);
+
+    selectedParts.forEach((part) => useAppStore.getState().deductStock(part.inventoryId, part.qty));
+    const addResult = addOrder(order);
+    if (!addResult.ok) {
+      toast.error(addResult.message || "Não foi possível criar a OS.");
+      return;
+    }
     await generateRepairOrderPDF(order, responsibilityTerm, companyInfo);
-    toast.success(`Ordem ${orderId} criada com sucesso! PDF gerado.`);
+    toast.success(`Ordem ${orderId} criada com sucesso!`);
     navigate("/ordens");
   };
 
-  const inputClass = "h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20";
-  const labelClass = "block text-sm font-medium text-foreground mb-1.5";
+  const inputClass =
+    "h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20";
+  const labelClass = "mb-1.5 block text-sm font-medium text-foreground";
+
+  const togglePatternPoint = (point: number) => {
+    setPatternPoints((prev) => {
+      if (prev.includes(point)) return prev;
+      return [...prev, point];
+    });
+  };
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 animate-fade-in">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/ordens")}>
           <ArrowLeft className="h-5 w-5" />
@@ -166,32 +291,30 @@ export default function NewRepairOrder() {
         <h2 className="text-xl font-semibold text-foreground">Nova Ordem de Serviço</h2>
       </div>
 
-      {/* Steps indicator */}
       <div className="flex items-center justify-between">
-        {steps.map((s, i) => (
-          <div key={i} className="flex flex-1 items-center">
+        {steps.map((stepItem, index) => (
+          <div key={index} className="flex flex-1 items-center">
             <div className="flex flex-col items-center gap-1.5">
               <div
                 className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-colors ${
-                  i < step ? "bg-success text-success-foreground" :
-                  i === step ? "bg-primary text-primary-foreground" :
-                  "bg-muted text-muted-foreground"
+                  index < step
+                    ? "bg-success text-success-foreground"
+                    : index === step
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
                 }`}
               >
-                {i < step ? <Check className="h-4 w-4" /> : <s.icon className="h-4 w-4" />}
+                {index < step ? <Check className="h-4 w-4" /> : <stepItem.icon className="h-4 w-4" />}
               </div>
-              <span className={`text-xs font-medium hidden sm:block ${i === step ? "text-foreground" : "text-muted-foreground"}`}>
-                {s.label}
+              <span className={`hidden text-xs font-medium sm:block ${index === step ? "text-foreground" : "text-muted-foreground"}`}>
+                {stepItem.label}
               </span>
             </div>
-            {i < steps.length - 1 && (
-              <div className={`mx-2 h-0.5 flex-1 rounded ${i < step ? "bg-success" : "bg-muted"}`} />
-            )}
+            {index < steps.length - 1 && <div className={`mx-2 h-0.5 flex-1 rounded ${index < step ? "bg-success" : "bg-muted"}`} />}
           </div>
         ))}
       </div>
 
-      {/* Step content */}
       <AnimatePresence mode="wait">
         <motion.div
           key={step}
@@ -201,50 +324,74 @@ export default function NewRepairOrder() {
           transition={{ duration: 0.2 }}
           className="glass-card rounded-xl p-6"
         >
-          {/* Step 0: Cliente */}
           {step === 0 && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground">Dados do Cliente</h3>
+              <h3 className="text-lg font-semibold text-foreground">Cliente (primeiro passo)</h3>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <div className="flex-1">
+                  <label className={labelClass}>Cliente cadastrado</label>
+                  <select
+                    className={inputClass}
+                    value={selectedCustomerId}
+                    onChange={(e) => selectCustomer(e.target.value)}
+                  >
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Button variant="outline" onClick={() => navigate("/clientes/novo")}>
+                  Novo cliente
+                </Button>
+                <Button variant="outline" onClick={() => setQuickCustomerOpen(true)}>
+                  Cadastro rapido
+                </Button>
+                <Button variant="outline" onClick={() => selectCustomer(DEFAULT_CUSTOMER.id)}>
+                  Não identificado
+                </Button>
+              </div>
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className={labelClass}>Nome completo *</label>
-                  <input className={inputClass} placeholder="Ex: João da Silva" value={form.customerName} onChange={(e) => updateForm("customerName", e.target.value)} />
+                  <input className={inputClass} value={form.customerName} onChange={(e) => updateForm("customerName", e.target.value)} />
                 </div>
                 <div>
                   <label className={labelClass}>CPF</label>
-                  <input className={inputClass} placeholder="000.000.000-00" value={form.customerCpf} onChange={(e) => updateForm("customerCpf", e.target.value)} />
+                  <input className={inputClass} value={form.customerCpf} onChange={(e) => updateForm("customerCpf", e.target.value)} />
                 </div>
                 <div>
                   <label className={labelClass}>Telefone *</label>
-                  <input className={inputClass} placeholder="(11) 99999-9999" value={form.customerPhone} onChange={(e) => updateForm("customerPhone", e.target.value)} />
+                  <input className={inputClass} value={form.customerPhone} onChange={(e) => updateForm("customerPhone", e.target.value)} />
                 </div>
                 <div>
                   <label className={labelClass}>E-mail</label>
-                  <input className={inputClass} placeholder="email@exemplo.com" value={form.customerEmail} onChange={(e) => updateForm("customerEmail", e.target.value)} />
+                  <input className={inputClass} value={form.customerEmail} onChange={(e) => updateForm("customerEmail", e.target.value)} />
                 </div>
               </div>
             </div>
           )}
 
-          {/* Step 1: Dispositivo */}
           {step === 1 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-foreground">Dados do Dispositivo</h3>
               <div>
                 <label className={labelClass}>Tipo de dispositivo *</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {deviceTypes.map((dt) => (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {deviceTypes.map((deviceType) => (
                     <button
-                      key={dt.value}
-                      onClick={() => updateForm("deviceType", dt.value)}
+                      key={deviceType.value}
+                      onClick={() => updateForm("deviceType", deviceType.value)}
                       className={`rounded-lg border-2 p-3 text-center transition-colors ${
-                        form.deviceType === dt.value
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/30"
+                        form.deviceType === deviceType.value ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
                       }`}
                     >
-                      <span className="text-2xl">{dt.icon}</span>
-                      <p className="mt-1 text-sm font-medium text-foreground">{dt.label}</p>
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted/60 text-foreground">
+                        <deviceType.icon className="h-4 w-4" />
+                      </span>
+                      <p className="mt-1 text-sm font-medium text-foreground">{deviceType.label}</p>
                     </button>
                   ))}
                 </div>
@@ -252,34 +399,121 @@ export default function NewRepairOrder() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className={labelClass}>Marca *</label>
-                  <input className={inputClass} placeholder="Ex: Apple, Samsung" value={form.brand} onChange={(e) => updateForm("brand", e.target.value)} />
+                  <input className={inputClass} value={form.brand} onChange={(e) => updateForm("brand", e.target.value)} />
                 </div>
                 <div>
                   <label className={labelClass}>Modelo *</label>
-                  <input className={inputClass} placeholder="Ex: iPhone 15 Pro" value={form.model} onChange={(e) => updateForm("model", e.target.value)} />
+                  <input className={inputClass} value={form.model} onChange={(e) => updateForm("model", e.target.value)} />
                 </div>
                 <div>
-                  <label className={labelClass}>IMEI / Nº de Série</label>
-                  <input className={inputClass} placeholder="Número de identificação" value={form.serialImei} onChange={(e) => updateForm("serialImei", e.target.value)} />
+                  <label className={labelClass}>IMEI / Numero de serie</label>
+                  <input className={inputClass} value={form.serialImei} onChange={(e) => updateForm("serialImei", e.target.value)} />
                 </div>
                 <div>
                   <label className={labelClass}>Cor</label>
-                  <input className={inputClass} placeholder="Ex: Preto, Prateado" value={form.deviceColor} onChange={(e) => updateForm("deviceColor", e.target.value)} />
+                  <input className={inputClass} value={form.deviceColor} onChange={(e) => updateForm("deviceColor", e.target.value)} />
                 </div>
                 <div>
-                  <label className={labelClass}>🔑 Senha do dispositivo</label>
-                  <input className={inputClass} placeholder="Senha / PIN / Padrão" value={form.devicePassword} onChange={(e) => updateForm("devicePassword", e.target.value)} />
+                  <label className={labelClass}>Tipo de senha do dispositivo</label>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPasswordType("numeric");
+                        setPatternPoints([]);
+                        updateForm("devicePassword", "");
+                      }}
+                      className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs ${passwordType === "numeric" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}
+                    >
+                      <Hash className="h-3.5 w-3.5" />
+                      Numérica
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPasswordType("text");
+                        setPatternPoints([]);
+                        updateForm("devicePassword", "");
+                      }}
+                      className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs ${passwordType === "text" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}
+                    >
+                      <Type className="h-3.5 w-3.5" />
+                      Letras
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPasswordType("pattern");
+                        updateForm("devicePassword", "");
+                        setPatternPoints([]);
+                      }}
+                      className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs ${passwordType === "pattern" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}
+                    >
+                      <Grid3X3 className="h-3.5 w-3.5" />
+                      Padrão
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPasswordType("none");
+                        setPatternPoints([]);
+                        updateForm("devicePassword", "");
+                      }}
+                      className={`rounded-lg border px-2 py-2 text-xs ${passwordType === "none" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}
+                    >
+                      Sem senha
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className={labelClass}>Senha / padrão</label>
+                  {(passwordType === "numeric" || passwordType === "text") && (
+                    <input
+                      className={inputClass}
+                      value={form.devicePassword}
+                      onChange={(e) => updateForm("devicePassword", e.target.value)}
+                      placeholder={passwordType === "numeric" ? "Ex.: 1234" : "Ex.: abcD"}
+                    />
+                  )}
+                  {passwordType === "pattern" && (
+                    <div className="space-y-2">
+                      <div className="grid w-[132px] grid-cols-3 gap-2 rounded-lg border border-border p-2">
+                        {Array.from({ length: 9 }, (_, idx) => idx + 1).map((point) => (
+                          <button
+                            key={point}
+                            type="button"
+                            onClick={() => togglePatternPoint(point)}
+                            className={`h-8 w-8 rounded-full border text-xs ${
+                              patternPoints.includes(point)
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border text-muted-foreground hover:border-primary/40"
+                            }`}
+                          >
+                            {point}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={() => setPatternPoints([])}>
+                          Limpar padrão
+                        </Button>
+                        <span className="text-xs text-muted-foreground self-center">
+                          Sequência: {patternPoints.length ? patternPoints.join("-") : "nenhuma"}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {passwordType === "none" && <input className={inputClass} disabled value="Sem senha informada" />}
                 </div>
                 <div>
                   <label className={labelClass}>Acessórios</label>
-                  <input className={inputClass} placeholder="Capinha, carregador, etc." value={form.accessories} onChange={(e) => updateForm("accessories", e.target.value)} />
+                  <input className={inputClass} value={form.accessories} onChange={(e) => updateForm("accessories", e.target.value)} />
                 </div>
               </div>
               <div>
-                <label className={labelClass}>Observações sobre o estado do aparelho</label>
+                <label className={labelClass}>Observações sobre estado do aparelho</label>
                 <textarea
-                  className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[80px]"
-                  placeholder="Descreva riscos, amassados, marcas visíveis..."
+                  className="min-h-[80px] w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                   value={form.conditionNotes}
                   onChange={(e) => updateForm("conditionNotes", e.target.value)}
                 />
@@ -287,9 +521,26 @@ export default function NewRepairOrder() {
             </div>
           )}
 
-          {/* Step 2: Checklist + Fotos */}
           {step === 2 && (
             <div className="space-y-6">
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                Senha informada:{" "}
+                <span className="font-medium text-foreground">
+                  {passwordType === "pattern"
+                    ? patternPoints.length
+                      ? `Padrão (${patternPoints.join("-")})`
+                      : "Padrão não desenhado"
+                    : passwordType === "numeric"
+                      ? form.devicePassword
+                        ? `Numérica (${form.devicePassword})`
+                        : "Numérica não informada"
+                      : passwordType === "text"
+                        ? form.devicePassword
+                          ? `Letras (${form.devicePassword})`
+                          : "Letras não informada"
+                        : "Sem senha"}
+                </span>
+              </div>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-foreground">Checklist de Entrada</h3>
@@ -297,7 +548,6 @@ export default function NewRepairOrder() {
                     {Object.values(checklist).filter(Boolean).length}/{checklistItems.length} itens OK
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground">Marque os itens que estão funcionando corretamente.</p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {checklistItems.map((item) => (
                     <label
@@ -310,7 +560,7 @@ export default function NewRepairOrder() {
                         type="checkbox"
                         checked={!!checklist[item]}
                         onChange={(e) => setChecklist((prev) => ({ ...prev, [item]: e.target.checked }))}
-                        className="h-4 w-4 rounded border-input text-primary accent-primary"
+                        className="h-4 w-4 rounded border-input accent-primary"
                       />
                       <span className="text-sm text-foreground">{item}</span>
                     </label>
@@ -318,49 +568,38 @@ export default function NewRepairOrder() {
                 </div>
               </div>
 
-              {/* Registro Fotográfico */}
               <div className="space-y-4 border-t border-border pt-4">
                 <div className="flex items-center gap-3">
                   <Camera className="h-5 w-5 text-primary" />
-                  <h3 className="text-lg font-semibold text-foreground">Registro Fotográfico</h3>
+                  <h3 className="text-lg font-semibold text-foreground">Registro Fotografico</h3>
                 </div>
-
-                {/* Entry Photos */}
                 <div className="space-y-2">
-                  <label className={labelClass}>Fotos de Entrada do Aparelho (até 5)</label>
-                  <input ref={entryPhotoRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handlePhotoUpload("entry", e.target.files)} />
+                  <label className={labelClass}>Fotos de entrada (ate 5)</label>
+                  <input
+                    ref={entryPhotoRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handleEntryPhotoUpload(e.target.files)}
+                  />
                   <div className="grid grid-cols-2 gap-3">
-                    {entryPhotos.map((photo, i) => (
-                      <div key={i} className="relative group rounded-lg overflow-hidden border border-border">
-                        <img src={photo} alt={`Entrada ${i + 1}`} className="w-full h-32 object-cover" />
-                        <button onClick={() => removePhoto("entry", i)} className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {entryPhotos.map((photo, photoIndex) => (
+                      <div key={photoIndex} className="group relative overflow-hidden rounded-lg border border-border">
+                        <img src={photo} alt={`Entrada ${photoIndex + 1}`} className="h-32 w-full object-cover" />
+                        <button
+                          onClick={() => removeEntryPhoto(photoIndex)}
+                          className="absolute right-1 top-1 rounded-full bg-destructive p-1 text-destructive-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                        >
                           <X className="h-3 w-3" />
                         </button>
                       </div>
                     ))}
                     {entryPhotos.length < 5 && (
-                      <button onClick={() => entryPhotoRef.current?.click()} className="flex items-center justify-center h-32 rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors text-muted-foreground hover:text-primary">
-                        <Camera className="h-6 w-6" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Exit Photos */}
-                <div className="space-y-2">
-                  <label className={labelClass}>Fotos de Saída do Aparelho (até 5)</label>
-                  <input ref={exitPhotoRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handlePhotoUpload("exit", e.target.files)} />
-                  <div className="grid grid-cols-2 gap-3">
-                    {exitPhotos.map((photo, i) => (
-                      <div key={i} className="relative group rounded-lg overflow-hidden border border-border">
-                        <img src={photo} alt={`Saída ${i + 1}`} className="w-full h-32 object-cover" />
-                        <button onClick={() => removePhoto("exit", i)} className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
-                    {exitPhotos.length < 5 && (
-                      <button onClick={() => exitPhotoRef.current?.click()} className="flex items-center justify-center h-32 rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors text-muted-foreground hover:text-primary">
+                      <button
+                        onClick={() => entryPhotoRef.current?.click()}
+                        className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+                      >
                         <Camera className="h-6 w-6" />
                       </button>
                     )}
@@ -370,39 +609,36 @@ export default function NewRepairOrder() {
             </div>
           )}
 
-          {/* Step 3: Problema */}
           {step === 3 && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground">Problema Relatado & Detalhes</h3>
+              <h3 className="text-lg font-semibold text-foreground">Problema Relatado e Detalhes</h3>
               <div>
                 <label className={labelClass}>Problema relatado pelo cliente *</label>
                 <textarea
-                  className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 min-h-[100px]"
-                  placeholder="Descreva o problema que o cliente reportou..."
+                  className="min-h-[100px] w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                   value={form.reportedProblem}
                   onChange={(e) => updateForm("reportedProblem", e.target.value)}
                 />
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className={labelClass}>Técnico responsável</label>
-                  <input className={inputClass} placeholder="Nome do técnico" value={form.technician} onChange={(e) => updateForm("technician", e.target.value)} />
+                  <label className={labelClass}>Tecnico responsavel</label>
+                  <input className={inputClass} value={form.technician} onChange={(e) => updateForm("technician", e.target.value)} />
                 </div>
                 <div>
-                  <label className={labelClass}>Previsão de entrega</label>
+                  <label className={labelClass}>PRevisão de entrega</label>
                   <input className={inputClass} type="date" value={form.estimatedDelivery} onChange={(e) => updateForm("estimatedDelivery", e.target.value)} />
                 </div>
               </div>
             </div>
           )}
 
-          {/* Step 4: Financeiro */}
           {step === 4 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-foreground">Dados Financeiros</h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className={labelClass}>Valor do serviço</label>
+                  <label className={labelClass}>Valor do Serviço</label>
                   <input className={inputClass} placeholder="R$ 0,00" value={form.serviceCost} onChange={(e) => updateForm("serviceCost", e.target.value)} />
                 </div>
                 <div>
@@ -414,7 +650,7 @@ export default function NewRepairOrder() {
                   <select className={inputClass} value={form.paymentMethod} onChange={(e) => updateForm("paymentMethod", e.target.value)}>
                     <option value="pix">Pix</option>
                     <option value="dinheiro">Dinheiro</option>
-                    <option value="cartao">Cartão</option>
+                    <option value="cartao">Cartao</option>
                     <option value="outro">Outro</option>
                   </select>
                 </div>
@@ -428,103 +664,75 @@ export default function NewRepairOrder() {
                 </div>
               </div>
 
-              {/* Parts selection */}
               <div className="space-y-3 border-t border-border pt-4">
                 <h4 className="text-sm font-semibold text-foreground">Peças Utilizadas</h4>
-                <p className="text-xs text-muted-foreground">Selecione as peças do estoque usadas neste reparo. A baixa será automática.</p>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {inventory.filter((i) => i.qty > 0).map((item) => {
-                    const selected = selectedParts.find((p) => p.inventoryId === item.id);
-                    return (
-                      <label key={item.id} className={`flex items-center justify-between gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${selected ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/30"}`}>
-                        <div className="flex items-center gap-3">
-                          <input type="checkbox" checked={!!selected}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedParts((prev) => [...prev, { inventoryId: item.id, name: item.name, qty: 1, unitCost: item.costPrice }]);
-                              } else {
-                                setSelectedParts((prev) => prev.filter((p) => p.inventoryId !== item.id));
-                              }
-                            }}
-                            className="h-4 w-4 rounded border-input accent-primary"
-                          />
-                          <div>
-                            <span className="text-sm text-foreground">{item.name}</span>
-                            <span className="ml-2 text-xs text-muted-foreground">({item.qty} em estoque • {formatCurrency(item.costPrice)})</span>
-                          </div>
-                        </div>
-                        {selected && (
-                          <input type="number" min="1" max={item.qty} value={selected.qty}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => {
-                              const qty = Math.min(parseInt(e.target.value) || 1, item.qty);
-                              setSelectedParts((prev) => prev.map((p) => p.inventoryId === item.id ? { ...p, qty } : p));
-                            }}
-                            className="h-8 w-16 rounded border border-input bg-card px-2 text-center text-sm"
-                          />
-                        )}
-                      </label>
-                    );
-                  })}
-                </div>
-                {selectedParts.length > 0 && (
-                  <div className="text-sm font-medium text-foreground text-right">
-                    Custo total de peças: {formatCurrency(partsCostTotal)}
+                {availableParts.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                    Nenhuma peça em estoque. Cadastre em <button className="font-semibold text-primary" onClick={() => navigate("/estoque/nova")}>Nova Peça</button>.
                   </div>
+                ) : (
+                  <div className="max-h-48 space-y-2 overflow-y-auto">
+                    {availableParts.map((item) => {
+                      const selected = selectedParts.find((part) => part.inventoryId === item.id);
+                      return (
+                        <label
+                          key={item.id}
+                          className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border p-3 transition-colors ${
+                            selected ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/30"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={!!selected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedParts((prev) => [...prev, { inventoryId: item.id, name: item.name, qty: 1, unitCost: item.costPrice }]);
+                                } else {
+                                  setSelectedParts((prev) => prev.filter((part) => part.inventoryId !== item.id));
+                                }
+                              }}
+                              className="h-4 w-4 rounded border-input accent-primary"
+                            />
+                            <div>
+                              <span className="text-sm text-foreground">{item.name}</span>
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                ({item.qty} em estoque - {formatCurrency(item.costPrice)})
+                              </span>
+                            </div>
+                          </div>
+                          {selected && (
+                            <input
+                              type="number"
+                              min="1"
+                              max={item.qty}
+                              value={selected.qty}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                const qty = Math.min(parseInt(e.target.value, 10) || 1, item.qty);
+                                setSelectedParts((prev) => prev.map((part) => (part.inventoryId === item.id ? { ...part, qty } : part)));
+                              }}
+                              className="h-8 w-16 rounded border border-input bg-card px-2 text-center text-sm"
+                            />
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {selectedParts.length > 0 && (
+                  <div className="text-right text-sm font-medium text-foreground">Custo total de peças: {formatCurrency(partsCostTotal)}</div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Step 5: Revisão */}
           {step === 5 && (
             <div className="space-y-5">
-              <h3 className="text-lg font-semibold text-foreground">Revisão & Termo de Responsabilidade</h3>
-
-              {/* Summary */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground">Cliente</p>
-                  <p className="text-sm font-medium text-foreground">{form.customerName}</p>
-                  <p className="text-xs text-muted-foreground">{form.customerPhone}</p>
-                  {form.customerCpf && <p className="text-xs text-muted-foreground">CPF: {form.customerCpf}</p>}
-                </div>
-                <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground">Dispositivo</p>
-                  <p className="text-sm font-medium text-foreground">{form.brand} {form.model}</p>
-                  <p className="text-xs text-muted-foreground">{form.deviceType === "phone" ? "Smartphone" : form.deviceType === "notebook" ? "Notebook" : "Tablet"} • {form.deviceColor || "N/A"}</p>
-                  {form.devicePassword && <p className="text-xs text-muted-foreground">🔑 Senha: {form.devicePassword}</p>}
-                  {form.serialImei && <p className="text-xs text-muted-foreground">IMEI/SN: {form.serialImei}</p>}
-                </div>
-              </div>
-
-              <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Problema</p>
-                <p className="text-sm text-foreground">{form.reportedProblem}</p>
-                {form.technician && <p className="text-xs text-muted-foreground">Técnico: {form.technician}</p>}
-                {form.cost && <p className="text-xs text-muted-foreground">Valor: {form.cost}</p>}
-              </div>
-
-              <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Checklist ({Object.values(checklist).filter(Boolean).length}/{checklistItems.length} OK)</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {checklistItems.map((item) => (
-                    <span
-                      key={item}
-                      className={`rounded-full px-2 py-0.5 text-xs ${
-                        checklist[item] ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
-                      }`}
-                    >
-                      {checklist[item] ? "✓" : "✗"} {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Responsibility Term */}
+              <h3 className="text-lg font-semibold text-foreground">Revisão e Termo de Responsabilidade</h3>
               <div className="rounded-lg border border-border p-4 space-y-3">
                 <p className="text-xs font-semibold uppercase text-muted-foreground">Termo de Responsabilidade</p>
-                <div className="max-h-40 overflow-y-auto rounded bg-muted/30 p-3 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                <div className="max-h-40 overflow-y-auto rounded bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">
                   {responsibilityTerm}
                 </div>
                 <label className="flex cursor-pointer items-center gap-3">
@@ -534,9 +742,7 @@ export default function NewRepairOrder() {
                     onChange={(e) => updateForm("termAccepted", e.target.checked)}
                     className="h-4 w-4 rounded border-input accent-primary"
                   />
-                  <span className="text-sm font-medium text-foreground">
-                    Cliente leu e aceitou o termo de responsabilidade
-                  </span>
+                  <span className="text-sm font-medium text-foreground">Cliente leu e aceitou o termo de responsabilidade</span>
                 </label>
               </div>
             </div>
@@ -544,9 +750,8 @@ export default function NewRepairOrder() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Navigation buttons */}
       <div className="flex justify-between">
-        <Button variant="outline" onClick={() => step > 0 ? setStep(step - 1) : navigate("/ordens")} className="gap-2">
+        <Button variant="outline" onClick={() => (step > 0 ? setStep(step - 1) : navigate("/ordens"))} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           {step === 0 ? "Cancelar" : "Voltar"}
         </Button>
@@ -562,6 +767,48 @@ export default function NewRepairOrder() {
           </Button>
         )}
       </div>
+
+      <Dialog open={quickCustomerOpen} onOpenChange={setQuickCustomerOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Cadastrar cliente rapido</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <input
+              className={inputClass}
+              placeholder="Nome *"
+              value={quickCustomerForm.name}
+              onChange={(e) => setQuickCustomerForm((prev) => ({ ...prev, name: e.target.value }))}
+            />
+            <input
+              className={inputClass}
+              placeholder="CPF"
+              value={quickCustomerForm.cpf}
+              onChange={(e) => setQuickCustomerForm((prev) => ({ ...prev, cpf: e.target.value }))}
+            />
+            <input
+              className={inputClass}
+              placeholder="Telefone *"
+              value={quickCustomerForm.phone}
+              onChange={(e) => setQuickCustomerForm((prev) => ({ ...prev, phone: e.target.value }))}
+            />
+            <input
+              className={inputClass}
+              placeholder="E-mail"
+              value={quickCustomerForm.email}
+              onChange={(e) => setQuickCustomerForm((prev) => ({ ...prev, email: e.target.value }))}
+            />
+          </div>
+          <div className="mt-3 flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setQuickCustomerOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleQuickCustomerSave}>Salvar e selecionar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+

@@ -71,3 +71,22 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Supabase auth and per-user data
+
+This project now supports login and isolated data per technician using Supabase.
+
+1. Copy `.env.example` to `.env` and fill:
+```sh
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+```
+2. In Supabase SQL Editor, run `supabase/schema.sql`.
+3. In Supabase Auth, create technician users (email/password).
+4. Start app with:
+```sh
+npm run dev
+```
+5. Login at `/login`.
+
+Each authenticated user can only read/write their own row in `app_states` (RLS by `auth.uid()`).
