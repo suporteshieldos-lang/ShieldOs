@@ -1,9 +1,19 @@
 import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function SubscriptionInactive() {
   const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleExit = async () => {
+    try {
+      await signOut();
+    } finally {
+      navigate("/login", { replace: true });
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
@@ -15,7 +25,7 @@ export default function SubscriptionInactive() {
         <p className="mt-2 text-sm text-muted-foreground">
           Sua empresa esta com assinatura bloqueada, cancelada ou vencida. Regularize o pagamento para voltar a acessar.
         </p>
-        <Button className="mt-5 w-full" variant="outline" onClick={() => void signOut()}>
+        <Button className="mt-5 w-full" variant="outline" onClick={() => void handleExit()}>
           Sair
         </Button>
       </div>

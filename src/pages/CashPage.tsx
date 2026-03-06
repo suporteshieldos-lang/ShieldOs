@@ -268,7 +268,7 @@ export default function CashPage() {
     setMovementDescription("");
     setMovementNotes("");
     setCashReceivedInput("");
-    toast.success("Movimentacao registrada.");
+    toast.success("Movimentação registrada.");
   };
 
   const closeCash = async () => {
@@ -287,7 +287,7 @@ export default function CashPage() {
 
   const confirmEstorno = () => {
     if (!targetEntry) return;
-    const result = reverseCashEntry(targetEntry.id, estornoReason, movementEmployee || closingEmployee || openingEmployee || "Usuario");
+    const result = reverseCashEntry(targetEntry.id, estornoReason, movementEmployee || closingEmployee || openingEmployee || "Usuário");
     if (!result.ok) return toast.error(result.message || "Não foi possível estornar.");
     setEstornoOpen(false);
     setEstornoReason("");
@@ -330,7 +330,7 @@ export default function CashPage() {
     doc.text("Tipo", col.tipo, y + 5);
     doc.text("Descrição", col.desc, y + 5);
     doc.text("Forma", col.forma, y + 5);
-    doc.text("Usuario", col.user, y + 5);
+    doc.text("Usuário", col.user, y + 5);
     doc.text("Valor", col.valor, y + 5, { align: "right" });
     doc.text("Saldo após", col.saldo, y + 5, { align: "right" });
     y += 8;
@@ -394,8 +394,8 @@ export default function CashPage() {
   };
 
   return (
-    <div className="space-y-5 animate-fade-in">
-      <div className="glass-card rounded-xl border border-border/60 p-4">
+    <div className="premium-page space-y-5">
+      <div className="premium-block border border-border/60 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm ${currentOpenRegister ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
             {currentOpenRegister ? "Caixa aberto — registrando movimentações do dia." : "Caixa fechado — movimentações em dinheiro não serão registradas."}
@@ -433,7 +433,7 @@ export default function CashPage() {
         </div>
       </div>
 
-      <div className="glass-card rounded-xl p-4">
+      <div className="premium-block p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="text-2xl font-semibold text-foreground">Movimentações do Caixa</h3>
@@ -460,7 +460,7 @@ export default function CashPage() {
         ) : null}
         <p className="mb-3 text-xs text-muted-foreground">Use este extrato para conferir o dinheiro físico e identificar possíveis diferenças.</p>
 
-        <div className="overflow-x-auto">
+        <div className="premium-table-shell overflow-x-auto">
           <table className="w-full min-w-[980px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30 text-left">
@@ -626,7 +626,7 @@ export default function CashPage() {
               <input className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={movementDescription} onChange={(event) => setMovementDescription(event.target.value)} />
             </div>
             <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-foreground">Observacoes</label>
+              <label className="mb-1 block text-sm font-medium text-foreground">Observações</label>
               <textarea className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" rows={3} value={movementNotes} onChange={(event) => setMovementNotes(event.target.value)} />
             </div>
           </div>
@@ -658,7 +658,7 @@ export default function CashPage() {
             <div>
               <label className="mb-1 block text-sm font-medium text-foreground">Valor contado em dinheiro *</label>
               <input className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" placeholder="R$ 0,00" value={countedInput} onChange={(event) => setCountedInput(event.target.value)} />
-              <p className={`mt-1 text-xs ${closePreview.diff === 0 ? "text-muted-foreground" : "text-amber-700"}`}>Diferenca de caixa (sobra/falta): {formatCurrency(closePreview.diff)}</p>
+              <p className={`mt-1 text-xs ${closePreview.diff === 0 ? "text-muted-foreground" : "text-amber-700"}`}>Diferença de caixa (sobra/falta): {formatCurrency(closePreview.diff)}</p>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-foreground">Justificativa / observacoes</label>
@@ -679,7 +679,7 @@ export default function CashPage() {
             <DialogDescription>O estorno marca a movimentação original como estornada, sem criar linha duplicada.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Movimentacao: <strong className="text-foreground">{targetEntry?.description || "-"}</strong></p>
+            <p className="text-sm text-muted-foreground">Movimentação: <strong className="text-foreground">{targetEntry?.description || "-"}</strong></p>
             <textarea className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" rows={3} placeholder="Motivo do estorno (obrigatório)" value={estornoReason} onChange={(event) => setEstornoReason(event.target.value)} />
           </div>
           <DialogFooter>

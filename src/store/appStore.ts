@@ -172,6 +172,7 @@ export interface CashEntry {
   date: string;
   type: "entrada" | "saida";
   status?: "ativa" | "estornada" | "cancelada";
+  financialStatus?: "previsto" | "pago";
   description: string;
   amount: number;
   category?: string;
@@ -212,6 +213,8 @@ export interface CashEntry {
   reversedAtIso?: string;
   reversedBy?: string;
   reversedReason?: string;
+  customerName?: string;
+  customerPhone?: string;
 }
 
 export interface FinancialSettings {
@@ -390,7 +393,7 @@ function budgetHistory(action: string, by?: string, details?: string): BudgetHis
 }
 
 export function getOrderTotal(order: RepairOrder): number {
-  return order.serviceCost + order.partsCost - order.discount;
+  return Math.max(0, order.serviceCost - order.discount);
 }
 
 export function getOrderProfit(order: RepairOrder): number {
@@ -1108,7 +1111,20 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     const nextOrder = { ...current, ...updates };
     const becamePaid = current.paymentStatus !== "pago" && nextOrder.paymentStatus === "pago";
+    const isPaidAfterUpdate = nextOrder.paymentStatus === "pago";
     const nextPaymentDate = nextOrder.paymentDate || new Date().toLocaleDateString("pt-BR");
+    const hasValidPartsCost = Number.isFinite(Number(nextOrder.partsCost)) && Number(nextOrder.partsCost) >= 0;
+
+    if (Object.prototype.hasOwnProperty.call(updates, "partsCost")) {
+      const incoming = Number(updates.partsCost);
+      if (!Number.isFinite(incoming) || incoming < 0) {
+        return { ok: false, message: "Custo da OS inválido. Informe valor maior ou igual a 0." };
+      }
+    }
+
+    if ((becamePaid || updates.paymentStatus === "pago") && !hasValidPartsCost) {
+      return { ok: false, message: "Para marcar como pago, informe o custo da OS (>= 0)." };
+    }
 
     if (becamePaid && nextOrder.paymentMethod === "dinheiro") {
       const openRegister = state.cashRegisters.find((register) => register.status === "aberto");
@@ -1122,7 +1138,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const targetBefore = currentState.orders.find((order) => order.id === id);
       if (!targetBefore) return currentState;
 
-      const after = { ...targetBefore, ...updates, paymentDate: becamePaid ? nextPaymentDate : nextOrder.paymentDate };
+      const after = {
+        ...targetBefore,
+        ...updates,
+        paymentDate: isPaidAfterUpdate ? nextOrder.paymentDate || nextPaymentDate : nextOrder.paymentDate,
+      };
       const changedFields = Object.keys(updates).filter(
         (field) =>
           JSON.stringify((targetBefore as Record<string, unknown>)[field]) !==
@@ -1143,11 +1163,30 @@ export const useAppStore = create<AppStore>((set, get) => ({
         ),
       };
 
-      if (becamePaid) {
-        const alreadyLaunched = currentState.cashEntries.some(
-          (entry) => entry.orderId === id && entry.source === "os" && entry.status !== "cancelada"
+      if (after.paymentStatus === "pago") {
+        const existingActiveOrderEntry = currentState.cashEntries.find(
+          (entry) => entry.orderId === id && entry.source === "os" && entry.status !== "cancelada" && entry.status !== "estornada"
         );
-        if (!alreadyLaunched) {
+        if (existingActiveOrderEntry) {
+          const openRegister = currentState.cashRegisters.find((register) => register.status === "aberto");
+          const affectsPhysicalCash = after.paymentMethod === "dinheiro";
+          nextState.cashEntries = currentState.cashEntries.map((entry) =>
+            entry.id === existingActiveOrderEntry.id
+              ? {
+                  ...entry,
+                  financialStatus: "pago",
+                  date: after.paymentDate || nextPaymentDate,
+                  paymentMethod: after.paymentMethod,
+                  amount: getOrderTotal(after),
+                  description: `Recebimento de OS ${after.id}`,
+                  employeeName: after.technician || entry.employeeName || "Sistema",
+                  performedBy: after.technician || entry.performedBy || "Sistema",
+                  affectsPhysicalCash,
+                  registerId: affectsPhysicalCash ? openRegister?.id : undefined,
+                }
+              : entry
+          );
+        } else {
           const openRegister = currentState.cashRegisters.find((register) => register.status === "aberto");
           const affectsPhysicalCash = after.paymentMethod === "dinheiro";
           const runningPhysical =
@@ -1158,7 +1197,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
           const entry: CashEntry = {
             id: createId(),
             registerId: openRegister?.id,
-            date: nextPaymentDate,
+            date: after.paymentDate || nextPaymentDate,
             type: "entrada",
             status: "ativa",
             description: `Recebimento de OS ${after.id}`,
@@ -1177,6 +1216,28 @@ export const useAppStore = create<AppStore>((set, get) => ({
             balanceAfterCents: affectsPhysicalCash ? runningPhysical + total : runningPhysical,
           };
           nextState.cashEntries = [entry, ...currentState.cashEntries];
+        }
+      } else {
+        const existingActiveOrderEntry = currentState.cashEntries.find(
+          (entry) => entry.orderId === id && entry.source === "os" && entry.status !== "cancelada" && entry.status !== "estornada"
+        );
+        if (existingActiveOrderEntry) {
+          nextState.cashEntries = currentState.cashEntries.map((entry) =>
+            entry.id === existingActiveOrderEntry.id
+              ? {
+                  ...entry,
+                  financialStatus: "previsto",
+                  date: after.date,
+                  paymentMethod: after.paymentMethod,
+                  amount: getOrderTotal(after),
+                  description: `Previsto OS ${after.id} - ${after.customerName}`,
+                  affectsPhysicalCash: false,
+                  registerId: undefined,
+                  balanceBeforeCents: undefined,
+                  balanceAfterCents: undefined,
+                }
+              : entry
+          );
         }
       }
 

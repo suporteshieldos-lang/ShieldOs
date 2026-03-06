@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CheckCircle2,
@@ -56,14 +56,14 @@ const statusLabel: Record<BudgetStatus, string> = {
 };
 
 const statusTone: Record<BudgetStatus, string> = {
-  RASCUNHO: "bg-muted text-muted-foreground",
-  ENVIADO: "bg-info/10 text-info",
-  AGUARDANDO_APROVACAO: "bg-warning/10 text-warning",
-  APROVADO: "bg-success/10 text-success",
-  REPROVADO: "bg-destructive/10 text-destructive",
-  EXPIRADO: "bg-muted text-muted-foreground",
-  CONVERTIDO_OS: "bg-primary/10 text-primary",
-  EXCLUIDO: "bg-muted text-muted-foreground",
+  RASCUNHO: "border-slate-300 bg-slate-100 text-slate-700",
+  ENVIADO: "border-blue-300 bg-blue-100 text-blue-700",
+  AGUARDANDO_APROVACAO: "border-violet-300 bg-violet-100 text-violet-700",
+  APROVADO: "border-emerald-300 bg-emerald-100 text-emerald-700",
+  REPROVADO: "border-rose-300 bg-rose-100 text-rose-700",
+  EXPIRADO: "border-slate-300 bg-slate-100 text-slate-700",
+  CONVERTIDO_OS: "border-green-700 bg-green-800 text-green-100",
+  EXCLUIDO: "border-slate-300 bg-slate-100 text-slate-700",
 };
 
 const emptyForm = {
@@ -330,57 +330,193 @@ export default function Budgets() {
   };
 
   const exportBudgetPdf = (budget: BudgetRecord) => {
-    const doc = new jsPDF();
-    let y = 16;
-    doc.setFontSize(14);
-    doc.text(`Orçamento ${budget.code}`, 10, y);
-    y += 8;
-    doc.setFontSize(10);
-    doc.text(`Cliente: ${budget.customerName}`, 10, y);
-    y += 5;
-    doc.text(`Aparelho: ${budget.equipment}`, 10, y);
-    y += 5;
-    doc.text(`Status: ${statusLabel[budget.status]}`, 10, y);
-    y += 5;
-    doc.text(`Data de criação: ${new Date(budget.createdAtIso).toLocaleDateString("pt-BR")}`, 10, y);
-    y += 5;
-    doc.text(`Validade: ${new Date(budget.validUntilIso).toLocaleDateString("pt-BR")}`, 10, y);
-    y += 8;
-    doc.text(`Problema: ${budget.problemDescription}`, 10, y);
-    y += 8;
-    doc.text("Itens:", 10, y);
-    y += 5;
-    budget.items.forEach((item) => {
-      doc.text(`- ${item.description} | ${item.qty}x | ${formatCurrency(item.unitPrice)} | ${formatCurrency(item.qty * item.unitPrice)}`, 10, y);
-      y += 5;
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 12;
+    const contentW = pageW - margin * 2;
+    const customer = customers.find((entry) => entry.id === budget.customerId);
+    const issueDate = new Date(budget.createdAtIso).toLocaleDateString("pt-BR");
+    const validUntil = new Date(budget.validUntilIso).toLocaleDateString("pt-BR");
+
+    const drawCard = (x: number, y: number, w: number, h: number, title: string) => {
+      doc.setFillColor(248, 250, 253);
+      doc.roundedRect(x, y, w, h, 2.2, 2.2, "F");
+      doc.setFillColor(237, 242, 248);
+      doc.roundedRect(x, y, w, 8, 2.2, 2.2, "F");
+      doc.setFillColor(28, 63, 102);
+      doc.circle(x + 4, y + 4, 1.2, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(28, 63, 102);
+      doc.setFontSize(9.2);
+      doc.text(title, x + 7, y + 5.5);
+      doc.setTextColor(15, 23, 42);
+    };
+
+    const drawInfoLine = (label: string, value: string, x: number, y: number) => {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.7);
+      doc.setTextColor(100, 116, 139);
+      doc.text(label, x, y);
+      doc.setTextColor(15, 23, 42);
+      doc.text(value, x, y + 4.3);
+    };
+
+    // Header
+    doc.setFillColor(15, 42, 68);
+    doc.roundedRect(margin, 10, contentW, 28, 2.6, 2.6, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(255, 255, 255);
+    doc.text("ShieldOS", margin + 6, 20.5);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.2);
+    doc.text("Sistema de Gestão de Assistência Técnica", margin + 6, 26.8);
+
+    doc.setDrawColor(148, 184, 223);
+    doc.line(pageW - 84, 14, pageW - 84, 33.5);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11.2);
+    doc.text(`Orçamento nº ${budget.code}`, pageW - 80, 20.5);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.8);
+    doc.text(`Data de emissão: ${issueDate}`, pageW - 80, 27);
+
+    // Info blocks
+    let y = 44;
+    const gap = 4;
+    const colW = (contentW - gap * 2) / 3;
+
+    drawCard(margin, y, colW, 31, "Dados do cliente");
+    drawInfoLine("Nome", budget.customerName || "Não informado", margin + 3, y + 12);
+    drawInfoLine("Telefone", customer?.phone || "Não informado", margin + 3, y + 20.7);
+    drawInfoLine("E-mail", customer?.email || "Não informado", margin + 3, y + 29.4);
+
+    drawCard(margin + colW + gap, y, colW, 31, "Informações do aparelho");
+    drawInfoLine("Aparelho", budget.equipment || "Não informado", margin + colW + gap + 3, y + 12);
+    const serviceLabel = buildServiceSummary(budget) || "Não informado";
+    const serviceLines = doc.splitTextToSize(serviceLabel, colW - 6);
+    drawInfoLine("Serviço", serviceLines[0] || "Não informado", margin + colW + gap + 3, y + 20.7);
+    drawInfoLine("Observação", budget.problemDescription || "Não informado", margin + colW + gap + 3, y + 29.4);
+
+    drawCard(margin + (colW + gap) * 2, y, colW, 31, "Status e validade");
+    drawInfoLine("Status", statusLabel[budget.status], margin + (colW + gap) * 2 + 3, y + 12);
+    drawInfoLine("Validade", validUntil, margin + (colW + gap) * 2 + 3, y + 20.7);
+    drawInfoLine("Data de emissão", issueDate, margin + (colW + gap) * 2 + 3, y + 29.4);
+
+    // Items table
+    y += 38;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.6);
+    doc.setTextColor(28, 63, 102);
+    doc.text("Lista de itens", margin, y);
+
+    const headY = y + 4;
+    doc.setFillColor(238, 242, 247);
+    doc.roundedRect(margin, headY, contentW, 9.5, 1.5, 1.5, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(51, 65, 85);
+
+    const c1 = margin + 3;
+    const c2 = margin + contentW * 0.61;
+    const c3 = margin + contentW * 0.73;
+    const c4 = margin + contentW - 3;
+    doc.text("Descrição", c1, headY + 6);
+    doc.text("Qtd", c2, headY + 6);
+    doc.text("Valor unitário", c3, headY + 6);
+    doc.text("Subtotal", c4, headY + 6, { align: "right" });
+
+    let rowY = headY + 13;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(15, 23, 42);
+
+    budget.items.forEach((item, index) => {
+      const rowH = 10;
+      if (index % 2 === 0) {
+        doc.setFillColor(251, 253, 255);
+        doc.rect(margin, rowY - 6.8, contentW, rowH, "F");
+      }
+      const desc = doc.splitTextToSize(item.description || "-", contentW * 0.56);
+      doc.text(desc[0] || "-", c1, rowY - 0.2);
+      doc.text(String(item.qty), c2, rowY - 0.2);
+      doc.text(formatCurrency(item.unitPrice), c3, rowY - 0.2);
+      doc.setFont("helvetica", "bold");
+      doc.text(formatCurrency(item.qty * item.unitPrice), c4, rowY - 0.2, { align: "right" });
+      doc.setFont("helvetica", "normal");
+      rowY += rowH;
     });
-    y += 4;
-    if (budget.discountAmount) {
-      doc.text(`Desconto: ${formatCurrency(budget.discountAmount)}`, 10, y);
-      y += 5;
+
+    if (budget.items.length === 0) {
+      doc.setTextColor(100, 116, 139);
+      doc.text("Nenhum item informado.", margin + 3, rowY);
+      rowY += 10;
     }
+
+    // Total highlight
+    const totalY = rowY + 2;
+    doc.setFillColor(22, 75, 124);
+    doc.roundedRect(margin, totalY, contentW, 27, 3, 3, "F");
     doc.setFont("helvetica", "bold");
-    doc.text(`Total: ${formatCurrency(budget.totalAmount)}`, 10, y);
-    y += 8;
+    doc.setTextColor(191, 219, 254);
+    doc.setFontSize(10);
+    doc.text("Valor total do orçamento", pageW / 2, totalY + 8.4, { align: "center" });
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.text(formatCurrency(budget.totalAmount), pageW / 2, totalY + 19.8, { align: "center" });
+
+    // Next step CTA
+    const ctaY = totalY + 31;
+    doc.setFillColor(245, 249, 255);
+    doc.roundedRect(margin, ctaY, contentW, 16, 2.5, 2.5, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(28, 63, 102);
+    doc.setFontSize(10);
+    doc.text("Próximo passo", margin + 3, ctaY + 6.2);
     doc.setFont("helvetica", "normal");
+    doc.setTextColor(71, 85, 105);
+    doc.setFontSize(8.8);
+    doc.text("Responda este orçamento com sua aprovação ou entre em contato para finalizar o atendimento.", margin + 3, ctaY + 11.6);
+
+    // Conditions and trust
+    const condY = ctaY + 20;
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(margin, condY, contentW, 28, 2.2, 2.2, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(51, 65, 85);
+    doc.setFontSize(9.5);
+    doc.text("Condições e garantias", margin + 3, condY + 6);
+
+    const condItems = [
+      "Garantia por escrito",
+      "Prazo estimado de entrega",
+      "Transparência nos valores",
+      "Taxa de diagnóstico aplicada se não aprovado",
+    ];
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.6);
+    doc.setTextColor(71, 85, 105);
+    condItems.forEach((item, index) => {
+      const yy = condY + 11 + index * 4.2;
+      doc.setFillColor(37, 99, 235);
+      doc.circle(margin + 4, yy - 0.8, 0.8, "F");
+      doc.text(item, margin + 7, yy);
+    });
+
+    // Footer
+    doc.setDrawColor(226, 232, 240);
+    doc.line(margin, 285, pageW - margin, 285);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(8.4);
     doc.text(
-      budget.legalValidityText || "Salvo estipulação em contrário, este orçamento tem validade de 7 dias a partir da data de emissão.",
-      10,
-      y
+      "ShieldOS | Documento profissional gerado pelo sistema de gestão da assistência técnica.",
+      pageW / 2,
+      289.5,
+      { align: "center" }
     );
-    y += 6;
-    doc.text("Taxa de diagnóstico: R$ 30,00 (cobrada caso o orçamento seja reprovado ou expire sem conversão em OS).", 10, y);
-    y += 7;
-    doc.setFont("helvetica", "bold");
-    doc.text("Selos de confianca:", 10, y);
-    y += 5;
-    doc.setFont("helvetica", "normal");
-    doc.text("- Garantia por escrito", 10, y);
-    y += 5;
-    doc.text("- Prazo estimado de entrega", 10, y);
+
     doc.save(`${budget.code}.pdf`);
   };
-
   const sendWhatsApp = (budget: BudgetRecord) => {
     const customer = customers.find((entry) => entry.id === budget.customerId);
     const phone = (customer?.phone || "").replace(/\D/g, "");
@@ -501,8 +637,8 @@ export default function Budgets() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className="premium-page">
+      <div className="premium-toolbar flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -523,7 +659,7 @@ export default function Budgets() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="premium-toolbar flex flex-wrap items-center gap-2">
         <select className="h-9 rounded-md border border-input bg-card px-3 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | BudgetStatus)}>
           <option value="all">Todos os status</option>
           {Object.keys(statusLabel).map((status) => (
@@ -540,7 +676,7 @@ export default function Budgets() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-10 text-center">
+        <div className="premium-block p-10 text-center">
           <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-muted">
             <FileText className="h-5 w-5 text-muted-foreground" />
           </div>
@@ -551,18 +687,18 @@ export default function Budgets() {
           </Button>
         </div>
       ) : (
-        <div className="rounded-xl border border-border">
+        <div className="premium-table-shell">
           <table className="w-full table-fixed text-sm">
             <thead>
-              <tr className="bg-muted/30 text-left">
-                <th className="w-[10%] px-3 py-3">Código</th>
-                <th className="w-[12%] px-3 py-3">Cliente</th>
-                <th className="w-[17%] px-3 py-3">Aparelho</th>
-                <th className="w-[16%] px-3 py-3">Status</th>
-                <th className="w-[11%] px-3 py-3 text-right">Valor total</th>
-                <th className="w-[10%] px-3 py-3">Validade</th>
-                <th className="w-[10%] px-3 py-3">Data de criação</th>
-                <th className="w-[8%] px-3 py-3 text-center">Ações</th>
+              <tr className="bg-muted/20 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="w-[10%] px-3 py-2.5">Código</th>
+                <th className="w-[12%] px-3 py-2.5">Cliente</th>
+                <th className="w-[17%] px-3 py-2.5">Aparelho</th>
+                <th className="w-[16%] px-3 py-2.5">Status</th>
+                <th className="w-[11%] px-3 py-2.5 text-right">Valor total</th>
+                <th className="w-[10%] px-3 py-2.5">Validade</th>
+                <th className="w-[10%] px-3 py-2.5">Data de criação</th>
+                <th className="w-[8%] px-3 py-2.5 text-center">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -572,17 +708,16 @@ export default function Budgets() {
                 const reminder = reminderStage(budget);
                 return (
                   <tr key={budget.id} className="border-t border-border/60">
-                    <td className="px-4 py-3 font-medium">{budget.code}</td>
-                    <td className="px-4 py-3">
-                      <p className="truncate">{budget.customerName}</p>
+                    <td className="px-4 py-2.5 font-semibold text-foreground">{budget.code}</td>
+                    <td className="px-4 py-2.5">
+                      <p className="truncate font-medium text-foreground">{budget.customerName}</p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <p className="font-medium text-foreground">{budget.equipment}</p>
                       <p className="line-clamp-1 text-xs text-muted-foreground">{summary}</p>
-                      <p className="text-xs text-success">Peca com garantia de 90 dias.</p>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusTone[budget.status]}`}>{statusLabel[budget.status]}</span>
+                    <td className="px-4 py-2.5">
+                      <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusTone[budget.status]}`}>{statusLabel[budget.status]}</span>
                       {expired && budget.status !== "EXCLUIDO" && <p className="mt-1 text-[11px] text-destructive">Validade expirada</p>}
                       {budget.status === "AGUARDANDO_APROVACAO" && !expired && (
                         <p className="mt-1 text-[11px] text-warning">
@@ -594,13 +729,13 @@ export default function Budgets() {
                         </p>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold">
+                    <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
                       <p>{formatCurrency(budget.totalAmount)}</p>
                       <p className="text-xs font-normal text-muted-foreground">{installmentPreview(budget.totalAmount)}</p>
                     </td>
-                    <td className="px-4 py-3">{new Date(budget.validUntilIso).toLocaleDateString("pt-BR")}</td>
-                    <td className="px-4 py-3">{new Date(budget.createdAtIso).toLocaleDateString("pt-BR")}</td>
-                    <td className="px-4 py-3 text-center align-top">
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{new Date(budget.validUntilIso).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{new Date(budget.createdAtIso).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-4 py-2.5 text-center align-top">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" size="sm" className="h-9 w-9 p-0">
@@ -745,7 +880,7 @@ export default function Budgets() {
           <DialogHeader><DialogTitle>Detalhes do orçamento</DialogTitle></DialogHeader>
           {selected && (
             <div className="space-y-3 text-sm">
-              <p><strong>{selected.code}</strong> • {statusLabel[selected.status]}</p>
+              <p><strong>{selected.code}</strong> - {statusLabel[selected.status]}</p>
               <p>Cliente: {selected.customerName}</p>
               <p>Aparelho: {selected.equipment}</p>
               <p>Problema: {selected.problemDescription}</p>
@@ -759,7 +894,7 @@ export default function Budgets() {
               <div className="rounded-lg border border-border p-3">
                 <p className="mb-2 font-medium">Histórico</p>
                 {(selected.history || []).length === 0 && <p className="text-muted-foreground">Sem alterações registradas.</p>}
-                {(selected.history || []).map((h, idx) => <p key={`${h.atIso}-${idx}`} className="text-xs">{new Date(h.atIso).toLocaleString("pt-BR")} • {h.by} • {h.action} {h.details ? `• ${h.details}` : ""}</p>)}
+                {(selected.history || []).map((h, idx) => <p key={`${h.atIso}-${idx}`} className="text-xs">{new Date(h.atIso).toLocaleString("pt-BR")} - {h.by} - {h.action} {h.details ? `- ${h.details}` : ""}</p>)}
               </div>
             </div>
           )}
@@ -780,4 +915,8 @@ export default function Budgets() {
     </div>
   );
 }
+
+
+
+
 

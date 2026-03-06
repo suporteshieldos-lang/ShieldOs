@@ -1,4 +1,5 @@
-﻿import {
+﻿import { useMemo } from "react";
+import {
   BarChart3,
   Briefcase,
   CheckCircle2,
@@ -7,8 +8,6 @@
   Layers,
   Receipt,
   Star,
-  TrendingDown,
-  TrendingUp,
   Wallet,
   Wrench,
 } from "lucide-react";
@@ -57,31 +56,43 @@ const statusColors = ["#4f87ff", "#86a9ff", "#5f7de4", "#f0b552", "#4dbf99"];
 export default function Dashboard() {
   const { orders, cashEntries, expenses } = useAppStore();
   const today = new Date();
+  const orderAmountById = useMemo(() => new Map(orders.map((o) => [o.id, getOrderTotal(o)])), [orders]);
+
+  const activeCashEntries = useMemo(
+    () => cashEntries.filter((entry) => entry.status !== "cancelada" && entry.status !== "estornada"),
+    [cashEntries]
+  );
+  const normalizedEntryAmount = (entry: (typeof cashEntries)[number]) => {
+    if (entry.source === "os" && entry.orderId && orderAmountById.has(entry.orderId)) {
+      return orderAmountById.get(entry.orderId) || 0;
+    }
+    return entry.amount;
+  };
 
   const osAbertas = orders.filter((o) => !["completed", "delivered", "cancelled"].includes(o.status)).length;
   const osEmAndamento = orders.filter((o) => ["diagnosing", "repairing", "waiting_parts"].includes(o.status)).length;
   const osFinalizadasPagas = orders.filter((o) => ["completed", "delivered"].includes(o.status) && o.paymentStatus === "pago").length;
 
-  const receitaMesOS = orders
-    .filter((o) => o.paymentStatus === "pago" && inCurrentMonth(o.paymentDate || o.date))
-    .reduce((sum, o) => sum + getOrderTotal(o), 0);
-  const receitaMesBalcao = cashEntries
-    .filter((e) => e.status !== "cancelada" && e.type === "entrada" && e.source === "venda_peca" && inCurrentMonth(e.date))
+  const receitaMesOS = activeCashEntries
+    .filter((e) => e.type === "entrada" && e.source === "os" && inCurrentMonth(e.date))
+    .reduce((sum, e) => sum + normalizedEntryAmount(e), 0);
+  const receitaMesBalcao = activeCashEntries
+    .filter((e) => e.type === "entrada" && e.source === "venda_peca" && inCurrentMonth(e.date))
     .reduce((sum, e) => sum + e.amount, 0);
   const faturamentoMes = receitaMesOS + receitaMesBalcao;
 
-  const receitaMesAnteriorOS = orders
-    .filter((o) => {
-      if (o.paymentStatus !== "pago") return false;
-      const date = parseBrDate(o.paymentDate || o.date);
+  const receitaMesAnteriorOS = activeCashEntries
+    .filter((e) => {
+      if (e.type !== "entrada" || e.source !== "os") return false;
+      const date = parseBrDate(e.date);
       if (!date) return false;
       const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
       return date.getMonth() === prevMonth.getMonth() && date.getFullYear() === prevMonth.getFullYear();
     })
-    .reduce((sum, o) => sum + getOrderTotal(o), 0);
-  const receitaMesAnteriorBalcao = cashEntries
+    .reduce((sum, e) => sum + normalizedEntryAmount(e), 0);
+  const receitaMesAnteriorBalcao = activeCashEntries
     .filter((e) => {
-      if (e.status === "cancelada" || e.type !== "entrada" || e.source !== "venda_peca") return false;
+      if (e.type !== "entrada" || e.source !== "venda_peca") return false;
       const date = parseBrDate(e.date);
       if (!date) return false;
       const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
@@ -95,11 +106,19 @@ export default function Dashboard() {
     .filter((o) => ["received", "diagnosing", "repairing", "waiting_parts"].includes(o.status) && o.paymentStatus !== "pago")
     .reduce((sum, o) => sum + getOrderTotal(o), 0);
 
+  const paidOrderIdsInMonth = new Set(
+    activeCashEntries
+      .filter((e) => e.type === "entrada" && e.source === "os" && inCurrentMonth(e.date) && !!e.orderId)
+      .map((e) => e.orderId as string)
+  );
   const custoPecasMes = orders
-    .filter((o) => inCurrentMonth(o.paymentDate || o.date))
+    .filter((o) => paidOrderIdsInMonth.has(o.id))
     .reduce((sum, o) => sum + (o.partsCost || 0), 0);
+  const custoBalcaoMes = activeCashEntries
+    .filter((e) => e.type === "entrada" && e.source === "venda_peca" && inCurrentMonth(e.date))
+    .reduce((sum, e) => sum + Math.max(0, Number(e.saleUnitCost || 0) * Math.max(0, Number(e.saleQty || 0))), 0);
   const despesasMes = expenses.filter((e) => inCurrentMonth(e.date)).reduce((sum, e) => sum + e.amount, 0);
-  const custosDespesas = custoPecasMes + despesasMes;
+  const custosDespesas = custoPecasMes + custoBalcaoMes + despesasMes;
   const lucroLiquido = faturamentoMes - custosDespesas;
 
   const entregues = orders.filter((o) => o.status === "delivered").length;
@@ -139,24 +158,21 @@ export default function Dashboard() {
     const map = new Map(base.map((row) => [row.label, row]));
 
     orders.forEach((o) => {
-      const date = parseBrDate(o.paymentDate || o.date);
+      const date = parseBrDate(o.date);
       if (!date) return;
-      const key = asShortDate(date);
-      const row = map.get(key);
-      if (!row) return;
-      if (o.paymentStatus === "pago") row.receita += Math.round(getOrderTotal(o) / 100);
-      row.os += 1;
+      const row = map.get(asShortDate(date));
+      if (row) row.os += 1;
     });
 
-    cashEntries
-      .filter((e) => e.status !== "cancelada" && e.type === "entrada" && e.source === "venda_peca")
+    activeCashEntries
+      .filter((e) => e.type === "entrada" && (e.source === "venda_peca" || e.source === "os"))
       .forEach((e) => {
         const date = parseBrDate(e.date);
         if (!date) return;
         const key = asShortDate(date);
         const row = map.get(key);
         if (!row) return;
-        row.receita += Math.round(e.amount / 100);
+        row.receita += Math.round(normalizedEntryAmount(e) / 100);
       });
 
     return base;
@@ -177,7 +193,9 @@ export default function Dashboard() {
     const map = new Map<string, number>();
     orders.forEach((o) => {
       const key = o.reportedProblem || o.model || "Servico";
-      map.set(key, (map.get(key) || 0) + getOrderTotal(o));
+      if (paidOrderIdsInMonth.has(o.id)) {
+        map.set(key, (map.get(key) || 0) + (o.serviceCost || 0));
+      }
     });
     return Array.from(map.entries())
       .sort((a, b) => b[1] - a[1])
@@ -193,33 +211,21 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="premium-page">
       <section className="grid gap-4 xl:grid-cols-4">
-        <article className="rounded-2xl border border-[#DCE5EF] bg-gradient-to-br from-[#1F3A5F] via-[#2F5D8A] to-[#2B6B8D] p-5 text-white shadow-md">
+        <article className="rounded-2xl border border-[#DCE5EF] bg-gradient-to-br from-[#1F3A5F] via-[#29557F] to-[#2B6B8D] p-5 text-white shadow-sm">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs uppercase tracking-wide text-white/70">Receita total do mês</p>
-              <p className="mt-2 text-5xl font-bold tracking-tight">{formatCurrency(faturamentoMes)}</p>
-              <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-sm">
-                {variacaoMes >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                <span>{Math.abs(variacaoMes)}% vs mês anterior</span>
-              </div>
+              <p className="text-xs uppercase tracking-wide text-white/75">Receita do mês</p>
+              <p className="mt-2 text-[44px] font-bold leading-none tracking-tight">{formatCurrency(faturamentoMes)}</p>
+              <p className="mt-3 text-xs text-white/75">
+                {variacaoMes >= 0 ? "Evolução positiva" : "Atenção na evolução"}: {Math.abs(variacaoMes)}% vs mês anterior
+              </p>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15">
               <DollarSign className="h-6 w-6" />
             </div>
           </div>
-        </article>
-
-        <article className="rounded-2xl border border-[#DCE5EF] bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-          <p className="text-xs uppercase tracking-wide text-[#64748B]">Custos + despesas</p>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F1F6FC]">
-              <Receipt className="h-5 w-5 text-[#2F5D8A]" />
-            </div>
-          </div>
-          <p className="mt-3 text-3xl font-bold tracking-tight text-[#0F172A]">{formatCurrency(custosDespesas)}</p>
-          <p className="mt-1 text-xs text-[#64748B]">Peças usadas e despesas operacionais</p>
         </article>
 
         <article className="rounded-2xl border border-[#DCE5EF] bg-white p-5 shadow-sm">
@@ -231,6 +237,17 @@ export default function Dashboard() {
           </div>
           <p className="mt-3 text-3xl font-bold tracking-tight text-[#0F172A]">{formatCurrency(lucroLiquido)}</p>
           <p className="mt-1 text-xs text-[#64748B]">Resultado após custos e despesas</p>
+        </article>
+
+        <article className="rounded-2xl border border-[#DCE5EF] bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+          <p className="text-xs uppercase tracking-wide text-[#64748B]">Custos + despesas</p>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F1F6FC]">
+              <Receipt className="h-5 w-5 text-[#2F5D8A]" />
+            </div>
+          </div>
+          <p className="mt-3 text-3xl font-bold tracking-tight text-[#0F172A]">{formatCurrency(custosDespesas)}</p>
+          <p className="mt-1 text-xs text-[#64748B]">Peças usadas e despesas operacionais</p>
         </article>
 
         <article className="rounded-2xl border border-[#DCE5EF] bg-white p-5 shadow-sm">
@@ -401,4 +418,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
 

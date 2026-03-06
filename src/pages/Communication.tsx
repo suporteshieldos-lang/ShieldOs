@@ -11,17 +11,17 @@ import {
 } from "@/lib/supabaseRest";
 
 const templates = [
-  "Ola, {cliente}. Sua ordem {os} esta com status: {status}.",
-  "Ola, {cliente}. Seu aparelho {marca} {modelo} esta pronto para retirada.",
-  "Ola, {cliente}. Precisamos da sua aprovacao para seguir com o reparo da ordem {os}.",
+  "Olá, {cliente}. Sua ordem {os} está com status: {status}.",
+  "Olá, {cliente}. Seu aparelho {marca} {modelo} está pronto para retirada.",
+  "Olá, {cliente}. Precisamos da sua aprovação para seguir com o reparo da ordem {os}.",
 ];
 
 const statusLabel: Record<string, string> = {
   received: "Recebido",
   diagnosing: "Diagnosticando",
   repairing: "Em reparo",
-  waiting_parts: "Aguardando peca",
-  completed: "Concluido",
+  waiting_parts: "Aguardando peça",
+  completed: "Concluído",
   delivered: "Entregue",
   cancelled: "Cancelada",
 };
@@ -137,17 +137,17 @@ export default function Communication() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="premium-page">
       <div>
         <p className="text-sm text-muted-foreground">
-          WhatsApp com historico de mensagens enviadas e respostas recebidas.
+          WhatsApp com histórico de mensagens enviadas e respostas recebidas.
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="glass-card space-y-4 rounded-xl p-5">
+        <div className="premium-block space-y-4 p-5">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">Ordem de servico</label>
+            <label className="mb-1.5 block text-sm font-medium text-foreground">Ordem de serviço</label>
             <select
               value={selectedOrderId}
               onChange={(e) => setSelectedOrderId(e.target.value)}
@@ -201,7 +201,7 @@ export default function Communication() {
           </div>
         </div>
 
-        <div className="glass-card rounded-xl p-5">
+        <div className="premium-block p-5">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Conversa</h3>
             {loading ? <span className="text-xs text-muted-foreground">Sincronizando...</span> : null}
@@ -221,7 +221,7 @@ export default function Communication() {
               <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
                 {messages.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    Nenhuma mensagem ainda. Envie a primeira no WhatsApp para iniciar o historico.
+                    Nenhuma mensagem ainda. Envie a primeira no WhatsApp para iniciar o histórico.
                   </p>
                 ) : (
                   messages.map((row) => (
@@ -244,7 +244,7 @@ export default function Communication() {
               </div>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">Nenhuma ordem disponivel para comunicacao.</p>
+            <p className="text-sm text-muted-foreground">Nenhuma ordem disponível para comunicação.</p>
           )}
         </div>
       </div>

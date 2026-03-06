@@ -62,7 +62,7 @@ export default function MasterPanel() {
     setSavingUserId(row.id);
     try {
       await masterUpdateUser(row.id, { nome: row.nome, role: row.role || "tecnico", ativo: row.ativo });
-      toast.success("Usuario atualizado.");
+      toast.success("Usuário atualizado.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao atualizar usuario.");
     } finally {

@@ -69,7 +69,12 @@ export default function NewRepairOrder() {
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [passwordType, setPasswordType] = useState<"none" | "numeric" | "text" | "pattern">("none");
   const [patternPoints, setPatternPoints] = useState<number[]>([]);
-  const [selectedParts, setSelectedParts] = useState<{ inventoryId: string; name: string; qty: number; unitCost: number }[]>([]);
+  const [selectedParts, setSelectedParts] = useState<{ inventoryId: string; name: string; qty: number; unitCost: number; manual?: boolean }[]>([]);
+  const [manualPart, setManualPart] = useState({
+    name: "",
+    unitCost: "",
+    qty: "1",
+  });
   const entryPhotoRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
@@ -98,6 +103,36 @@ export default function NewRepairOrder() {
   const checklistItems = useMemo(() => getChecklistItems(form.deviceType), [form.deviceType]);
   const partsCostTotal = selectedParts.reduce((sum, part) => sum + part.unitCost * part.qty, 0);
   const availableParts = inventory.filter((item) => item.qty > 0);
+
+  const addManualPart = () => {
+    const name = manualPart.name.trim();
+    const unitCost = parseCurrency(manualPart.unitCost);
+    const qty = Math.max(1, parseInt(manualPart.qty, 10) || 1);
+    if (!name) {
+      toast.error("Informe o nome da peça avulsa.");
+      return;
+    }
+    if (unitCost <= 0) {
+      toast.error("Informe um custo válido para a peça avulsa.");
+      return;
+    }
+    setSelectedParts((prev) => [
+      ...prev,
+      {
+        inventoryId: `manual-${createId()}`,
+        name,
+        qty,
+        unitCost,
+        manual: true,
+      },
+    ]);
+    setManualPart({ name: "", unitCost: "", qty: "1" });
+    toast.success("Peça avulsa adicionada à OS.");
+  };
+
+  const removeSelectedPart = (inventoryId: string) => {
+    setSelectedParts((prev) => prev.filter((part) => part.inventoryId !== inventoryId));
+  };
 
   const updateForm = (field: string, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -260,7 +295,12 @@ export default function NewRepairOrder() {
       exitPhotos: [],
     };
 
-    selectedParts.forEach((part) => useAppStore.getState().deductStock(part.inventoryId, part.qty));
+    const stockIds = new Set(inventory.map((item) => item.id));
+    selectedParts.forEach((part) => {
+      if (stockIds.has(part.inventoryId)) {
+        useAppStore.getState().deductStock(part.inventoryId, part.qty);
+      }
+    });
     const addResult = addOrder(order);
     if (!addResult.ok) {
       toast.error(addResult.message || "Não foi possível criar a OS.");
@@ -720,6 +760,53 @@ export default function NewRepairOrder() {
                     })}
                   </div>
                 )}
+                <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pe�a avulsa (n�o cadastrada no estoque)</p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
+                    <input
+                      className={`${inputClass} sm:col-span-6`}
+                      placeholder="Nome da pe�a"
+                      value={manualPart.name}
+                      onChange={(e) => setManualPart((prev) => ({ ...prev, name: e.target.value }))}
+                    />
+                    <input
+                      className={`${inputClass} sm:col-span-3`}
+                      placeholder="Custo (R$)"
+                      value={manualPart.unitCost}
+                      onChange={(e) => setManualPart((prev) => ({ ...prev, unitCost: e.target.value }))}
+                    />
+                    <input
+                      className={`${inputClass} sm:col-span-1`}
+                      type="number"
+                      min="1"
+                      value={manualPart.qty}
+                      onChange={(e) => setManualPart((prev) => ({ ...prev, qty: e.target.value }))}
+                    />
+                    <Button type="button" className="sm:col-span-2" onClick={addManualPart}>
+                      Adicionar
+                    </Button>
+                  </div>
+                </div>
+                {selectedParts.length > 0 && (
+                  <div className="space-y-2">
+                    {selectedParts.map((part) => (
+                      <div key={part.inventoryId} className="flex items-center justify-between rounded-lg border border-border/70 bg-card px-3 py-2 text-sm">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-foreground">
+                            {part.name}
+                            {part.manual ? <span className="ml-2 text-xs text-muted-foreground">(avulsa)</span> : null}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {part.qty}x {formatCurrency(part.unitCost)} = {formatCurrency(part.qty * part.unitCost)}
+                          </p>
+                        </div>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeSelectedPart(part.inventoryId)}>
+                          Remover
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {selectedParts.length > 0 && (
                   <div className="text-right text-sm font-medium text-foreground">Custo total de peças: {formatCurrency(partsCostTotal)}</div>
                 )}
@@ -810,5 +897,8 @@ export default function NewRepairOrder() {
     </div>
   );
 }
+
+
+
 
 

@@ -71,13 +71,13 @@ export default function NewInventoryItem() {
           }
           return;
         } catch (seedError) {
-          toast.error(seedError instanceof Error ? seedError.message : "Nao foi possivel criar categoria padrao.");
+          toast.error(seedError instanceof Error ? seedError.message : "Não foi possível criar categoria padrão.");
         }
       }
       setCategories(cats);
       setSuppliers(sups);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nao foi possivel carregar dados auxiliares.");
+      toast.error(error instanceof Error ? error.message : "Não foi possível carregar dados auxiliares.");
     }
   };
 
@@ -92,9 +92,9 @@ export default function NewInventoryItem() {
       const created = await createInventoryCategory("Geral");
       await loadAux();
       setForm((p) => ({ ...p, categoryId: created.id }));
-      toast.success("Categoria padrao criada.");
+      toast.success("Categoria padrão criada.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nao foi possivel criar a categoria.");
+      toast.error(error instanceof Error ? error.message : "Não foi possível criar a categoria.");
     } finally {
       setCreatingCategory(false);
     }
@@ -105,15 +105,15 @@ export default function NewInventoryItem() {
     const qty = parseInt(form.qty, 10);
     const minQty = parseInt(form.minQty, 10);
 
-    if (!form.name.trim()) nextErrors.name = "Nome da peca e obrigatorio.";
-    if (!form.sku.trim()) nextErrors.sku = "SKU e obrigatorio.";
-    if (!form.categoryId) nextErrors.categoryId = "Categoria e obrigatoria.";
+    if (!form.name.trim()) nextErrors.name = "Nome da peça é obrigatório.";
+    if (!form.sku.trim()) nextErrors.sku = "SKU é obrigatório.";
+    if (!form.categoryId) nextErrors.categoryId = "Categoria é obrigatória.";
     if (categories.length === 0) nextErrors.categoryId = "Cadastre ao menos uma categoria antes de salvar.";
     if (Number.isNaN(qty) || qty < 0) nextErrors.qty = "Quantidade inicial deve ser maior ou igual a zero.";
-    if (Number.isNaN(minQty) || minQty < 0) nextErrors.minQty = "Estoque minimo deve ser maior ou igual a zero.";
-    if (!isPositiveCurrency(form.costPrice)) nextErrors.costPrice = "Custo unitario deve ser maior que zero.";
-    if (!isPositiveCurrency(form.salePrice)) nextErrors.salePrice = "Preco de venda deve ser maior que zero.";
-    if (!form.unit) nextErrors.unit = "Unidade de medida e obrigatoria.";
+    if (Number.isNaN(minQty) || minQty < 0) nextErrors.minQty = "Estoque mínimo deve ser maior ou igual a zero.";
+    if (!isPositiveCurrency(form.costPrice)) nextErrors.costPrice = "Custo unitário deve ser maior que zero.";
+    if (!isPositiveCurrency(form.salePrice)) nextErrors.salePrice = "Preço de venda deve ser maior que zero.";
+    if (!form.unit) nextErrors.unit = "Unidade de medida é obrigatória.";
 
     return nextErrors;
   };
@@ -124,7 +124,7 @@ export default function NewInventoryItem() {
     const nextErrors = validate();
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
-      toast.error("Corrija os campos obrigatorios antes de salvar.");
+      toast.error("Corrija os campos obrigatórios antes de salvar.");
       return;
     }
 
@@ -174,10 +174,10 @@ export default function NewInventoryItem() {
         notes: form.notes.trim(),
       });
 
-      toast.success("Peca cadastrada com sucesso.");
+      toast.success("Peça cadastrada com sucesso.");
       navigate("/estoque");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nao foi possivel salvar a peca.");
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar a peça.");
     } finally {
       setSaving(false);
     }
@@ -189,20 +189,20 @@ export default function NewInventoryItem() {
   const errorClass = "mt-1 text-xs text-destructive";
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 animate-fade-in">
+    <div className="premium-page mx-auto max-w-4xl">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/estoque")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h2 className="text-xl font-semibold text-foreground">Nova Peca</h2>
+        <h2 className="text-xl font-semibold text-foreground">Nova peça</h2>
       </div>
 
-      <div className="space-y-5 rounded-xl border border-border bg-card p-6">
+      <div className="premium-block space-y-5 p-6">
         <section className="space-y-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Identificacao</h3>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Identificação</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className={labelClass}>Nome da peca *</label>
+              <label className={labelClass}>Nome da peça *</label>
               <input
                 className={inputClass}
                 placeholder="Ex: Fone Bluetooth JBL"
@@ -216,7 +216,7 @@ export default function NewInventoryItem() {
               <input
                 className={inputClass}
                 placeholder="Ex: FON-JBL-001"
-                title="Codigo interno para identificacao rapida da peca"
+                title="Código interno para identificação rápida da peça"
                 value={form.sku}
                 onChange={(e) => setForm((p) => ({ ...p, sku: e.target.value }))}
               />
@@ -289,12 +289,12 @@ export default function NewInventoryItem() {
               {errors.unit && <p className={errorClass}>{errors.unit}</p>}
             </div>
             <div>
-              <label className={labelClass}>Estoque minimo *</label>
+              <label className={labelClass}>Estoque mínimo *</label>
               <input className={inputClass} type="number" min="0" value={form.minQty} onChange={(e) => setForm((p) => ({ ...p, minQty: e.target.value }))} />
               {errors.minQty && <p className={errorClass}>{errors.minQty}</p>}
             </div>
             <div>
-              <label className={labelClass}>Localizacao</label>
+              <label className={labelClass}>Localização</label>
               <input className={inputClass} placeholder="Ex: Prateleira A3" value={form.location} onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))} />
             </div>
           </div>
@@ -304,7 +304,7 @@ export default function NewInventoryItem() {
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Custos</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className={labelClass}>Custo unitario *</label>
+              <label className={labelClass}>Custo unitário *</label>
               <input
                 className={inputClass}
                 placeholder="R$ 0,00"
@@ -314,7 +314,7 @@ export default function NewInventoryItem() {
               {errors.costPrice && <p className={errorClass}>{errors.costPrice}</p>}
             </div>
             <div>
-              <label className={labelClass}>Preco de venda *</label>
+              <label className={labelClass}>Preço de venda *</label>
               <input
                 className={inputClass}
                 placeholder="R$ 0,00"
@@ -338,10 +338,10 @@ export default function NewInventoryItem() {
         </section>
 
         <section className="space-y-2 border-t border-border pt-5">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Observacoes</h3>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Observações</h3>
           <textarea
             className="min-h-[92px] w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
-            placeholder="Descricao / observacoes tecnicas"
+            placeholder="Descrição / observações técnicas"
             value={form.notes}
             onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
           />
@@ -353,7 +353,7 @@ export default function NewInventoryItem() {
           </Button>
           <Button className="gap-2" onClick={handleSave} disabled={saving || !isValid}>
             <Save className="h-4 w-4" />
-            {saving ? "Salvando..." : "Salvar peca"}
+            {saving ? "Salvando..." : "Salvar peça"}
           </Button>
         </div>
       </div>

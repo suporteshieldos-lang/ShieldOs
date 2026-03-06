@@ -96,7 +96,7 @@ export default function Inventory() {
   const [editLoading, setEditLoading] = useState(false);
 
   const validateEdit = () => {
-    if (!editing) return { general: "Peça invalida." };
+    if (!editing) return { general: "Peça inválida." };
     const nextErrors: Record<string, string> = {};
     const minQty = parseInt(editForm.minQty, 10);
     const adjustment = parseInt(editForm.stockAdjustment, 10) || 0;
@@ -104,11 +104,11 @@ export default function Inventory() {
     const sale = parseCurrency(editForm.salePrice);
     const newQty = editing.qty + adjustment;
 
-    if (!editForm.name.trim()) nextErrors.name = "Nome da Peça obrigatorio.";
-    if (!editForm.sku.trim()) nextErrors.sku = "SKU obrigatorio.";
-    if (Number.isNaN(minQty) || minQty < 0) nextErrors.minQty = "Estoque minimo Não pode ser negativo.";
+    if (!editForm.name.trim()) nextErrors.name = "Nome da peça obrigatório.";
+    if (!editForm.sku.trim()) nextErrors.sku = "SKU obrigatório.";
+    if (Number.isNaN(minQty) || minQty < 0) nextErrors.minQty = "Estoque mínimo não pode ser negativo.";
     if (cost < 0) nextErrors.costPrice = "Custo Não pode ser negativo.";
-    if (sale <= 0) nextErrors.salePrice = "Preco de venda deve ser maior que zero.";
+    if (sale <= 0) nextErrors.salePrice = "Preço de venda deve ser maior que zero.";
     if (adjustment !== 0 && !editForm.adjustmentReason.trim()) nextErrors.adjustmentReason = "Informe o motivo do ajuste.";
     if (newQty < 0) nextErrors.stockAdjustment = "Estoque insuficiente para esse ajuste.";
     return nextErrors;
@@ -184,7 +184,7 @@ export default function Inventory() {
       setEditing(null);
       setEditErrors({});
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Não foi possivel atualizar a Peça.";
+      const message = error instanceof Error ? error.message : "Não foi possível atualizar a peça.";
       toast.error(message);
     } finally {
       setEditLoading(false);
@@ -194,7 +194,7 @@ export default function Inventory() {
   const confirmDelete = (item: InventoryItem) => {
     if (!window.confirm(`Deseja excluir a Peça "${item.name}"?`)) return;
     deleteInventoryItem(item.id);
-    toast.success("Peça excluida.");
+    toast.success("Peça excluída.");
   };
 
   const openSell = (item: InventoryItem) => {
@@ -207,7 +207,7 @@ export default function Inventory() {
   };
 
   const validateSale = () => {
-    if (!selling) return { qty: "Item invalido." };
+    if (!selling) return { qty: "Item inválido." };
     const qty = Math.max(1, parseInt(sellQty, 10) || 1);
     const unitSale = parseCurrency(sellPrice);
     const nextErrors: { qty?: string; price?: string; stock?: string } = {};
@@ -316,8 +316,8 @@ export default function Inventory() {
   const hasSaleError = Object.keys(validateSale()).length > 0;
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="premium-page">
+      <div className="premium-toolbar flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -389,8 +389,8 @@ export default function Inventory() {
         })}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-xl md:block">
-        <table className="glass-card w-full min-w-[1080px] text-sm">
+      <div className="premium-table-shell hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[1080px] text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30 text-left">
               <th className="px-4 py-3 font-medium text-muted-foreground">Peça</th>
@@ -484,7 +484,7 @@ export default function Inventory() {
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase text-muted-foreground">Estoque atual</label>
               <input className="h-10 w-full rounded-lg border border-input bg-muted px-3 text-sm text-muted-foreground" value={String(editing?.qty ?? 0)} readOnly />
-              {!!editing && editing.qty < editing.minQty && <p className="mt-1 text-xs text-warning">Abaixo do estoque minimo.</p>}
+              {!!editing && editing.qty < editing.minQty && <p className="mt-1 text-xs text-warning">Abaixo do estoque mínimo.</p>}
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase text-muted-foreground">Ajuste de estoque (+/-)</label>
@@ -497,7 +497,7 @@ export default function Inventory() {
               {editErrors.adjustmentReason && <p className="mt-1 text-xs text-destructive">{editErrors.adjustmentReason}</p>}
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase text-muted-foreground">Estoque minimo *</label>
+              <label className="mb-1 block text-xs font-semibold uppercase text-muted-foreground">Estoque mínimo *</label>
               <input className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm" type="number" min="0" value={editForm.minQty} onChange={(e) => setEditForm((p) => ({ ...p, minQty: e.target.value }))} />
               {editErrors.minQty && <p className="mt-1 text-xs text-destructive">{editErrors.minQty}</p>}
             </div>
@@ -507,12 +507,12 @@ export default function Inventory() {
               {editErrors.costPrice && <p className="mt-1 text-xs text-destructive">{editErrors.costPrice}</p>}
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase text-muted-foreground">Preco de venda *</label>
+              <label className="mb-1 block text-xs font-semibold uppercase text-muted-foreground">Preço de venda *</label>
               <input className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm" value={editForm.salePrice} onChange={(e) => setEditForm((p) => ({ ...p, salePrice: e.target.value }))} />
-              <p className="mt-1 text-[11px] text-muted-foreground">Preco cobrado do cliente</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">Preço cobrado do cliente</p>
               {editErrors.salePrice && <p className="mt-1 text-xs text-destructive">{editErrors.salePrice}</p>}
               {parseCurrency(editForm.salePrice) < parseCurrency(editForm.costPrice) && (
-                <p className="mt-1 text-xs text-warning">Aviso: preco de venda abaixo do custo.</p>
+                <p className="mt-1 text-xs text-warning">Aviso: preço de venda abaixo do custo.</p>
               )}
             </div>
             <div>
@@ -564,10 +564,10 @@ export default function Inventory() {
                   {sellErrors.qty && <p className="mt-1 text-xs text-destructive">{sellErrors.qty}</p>}
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase text-muted-foreground">Preco unitario</label>
+                  <label className="mb-1 block text-xs font-semibold uppercase text-muted-foreground">Preço unitário</label>
                   <input
                     className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/25"
-                    placeholder="Preco unitario de venda"
+                    placeholder="Preço unitário de venda"
                     value={sellPrice}
                     onChange={(e) => setSellPrice(e.target.value)}
                   />

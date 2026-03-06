@@ -1,8 +1,9 @@
 ﻿import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Search, Plus, Wrench, FileText, Camera, Pencil, Trash2 } from "lucide-react";
+import { Search, Plus, Wrench, FileText, Camera, Pencil, Trash2, MoreVertical, Image as ImageIcon, ChevronLeft, ChevronRight, User, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
 import {
   useAppStore,
   formatCurrency,
@@ -11,21 +12,23 @@ import {
   getChecklistItems,
   RepairOrder,
   OrderStatus,
+  PaymentMethod,
   PaymentStatus,
   DEFAULT_CUSTOMER,
 } from "@/store/appStore";
 import { generateRepairOrderPDF } from "@/lib/pdfGenerator";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const statusConfig: Record<OrderStatus, { label: string; color: string }> = {
-  received: { label: "Recebido", color: "bg-secondary text-secondary-foreground" },
-  diagnosing: { label: "Diagnosticando", color: "bg-info/10 text-info" },
-  repairing: { label: "Em Reparo", color: "bg-accent/10 text-accent" },
-  waiting_parts: { label: "Aguardando Peça", color: "bg-warning/10 text-warning" },
-  completed: { label: "Concluido", color: "bg-success/10 text-success" },
-  delivered: { label: "Entregue", color: "bg-muted text-muted-foreground" },
-  cancelled: { label: "Cancelada", color: "bg-destructive/10 text-destructive" },
+  received: { label: "Recebido", color: "bg-slate-100 text-slate-700" },
+  diagnosing: { label: "Diagnosticando", color: "bg-blue-100 text-blue-700" },
+  repairing: { label: "Em Reparo", color: "bg-orange-100 text-orange-700" },
+  waiting_parts: { label: "Aguardando Peça", color: "bg-violet-100 text-violet-700" },
+  completed: { label: "Concluído", color: "bg-green-100 text-green-700" },
+  delivered: { label: "Entregue", color: "bg-green-100 text-green-700" },
+  cancelled: { label: "Cancelada", color: "bg-rose-100 text-rose-700" },
 };
 
 const statusOptions: OrderStatus[] = [
@@ -39,9 +42,18 @@ const statusOptions: OrderStatus[] = [
 ];
 
 const paymentLabels: Record<string, { label: string; color: string }> = {
-  pago: { label: "Pago", color: "text-success" },
-  pendente: { label: "Pendente", color: "text-destructive" },
+  pago: { label: "Pago", color: "text-green-700" },
+  pendente: { label: "Pendente", color: "text-orange-600" },
   parcial: { label: "Parcial", color: "text-warning" },
+};
+const paymentMethodOptions: PaymentMethod[] = ["pix", "dinheiro", "debito", "credito", "cartao", "outro"];
+const paymentMethodLabel: Record<PaymentMethod, string> = {
+  pix: "Pix",
+  dinheiro: "Dinheiro",
+  debito: "Débito",
+  credito: "Crédito",
+  cartao: "Cartão",
+  outro: "Outro",
 };
 
 const statusFilters: Array<"all" | OrderStatus> = [
@@ -56,6 +68,7 @@ const statusFilters: Array<"all" | OrderStatus> = [
 ];
 
 type EditDraft = {
+  status: OrderStatus;
   customerName: string;
   customerPhone: string;
   customerEmail: string;
@@ -93,6 +106,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
 
 function createDraft(order: RepairOrder): EditDraft {
   return {
+    status: order.status,
     customerName: order.customerName,
     customerPhone: order.customerPhone,
     customerEmail: order.customerEmail,
@@ -120,6 +134,16 @@ function createDraft(order: RepairOrder): EditDraft {
   };
 }
 
+function askPaymentMethod(defaultValue: PaymentMethod = "pix"): PaymentMethod | null {
+  const typed = window
+    .prompt("Informe o meio de pagamento (pix, dinheiro, debito, credito, cartao, outro):", defaultValue)
+    ?.trim()
+    .toLowerCase();
+  if (!typed) return null;
+  if (!paymentMethodOptions.includes(typed as PaymentMethod)) return null;
+  return typed as PaymentMethod;
+}
+
 export default function RepairOrders() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -132,8 +156,12 @@ export default function RepairOrders() {
   const [draft, setDraft] = useState<EditDraft | null>(null);
   const [editTab, setEditTab] = useState<"dados" | "pecas" | "fotos" | "checklist">("dados");
   const [selectedEditCustomerId, setSelectedEditCustomerId] = useState<string>(DEFAULT_CUSTOMER.id);
-  const [customTechnicians, setCustomTechnicians] = useState<string[]>([]);
-  const [newTechnicianName, setNewTechnicianName] = useState("");
+  const [previewGallery, setPreviewGallery] = useState<{
+    title: string;
+    items: Array<{ src: string; label: string }>;
+    index: number;
+  } | null>(null);
+  const [expandedProblems, setExpandedProblems] = useState<Record<string, boolean>>({});
 
   const filtered = orders.filter((order) => {
     const text = search.toLowerCase();
@@ -152,9 +180,9 @@ export default function RepairOrders() {
   );
   const technicianOptions = useMemo(() => {
     const fromOrders = orders.map((order) => order.technician.trim()).filter(Boolean);
-    const merged = [...fromOrders, ...customTechnicians, draft?.technician?.trim() || ""].filter(Boolean);
+    const merged = [...fromOrders, draft?.technician?.trim() || ""].filter(Boolean);
     return Array.from(new Set(merged)).sort((a, b) => a.localeCompare(b));
-  }, [orders, customTechnicians, draft?.technician]);
+  }, [orders, draft?.technician]);
 
   const customerOptions = useMemo(
     () => customers.filter((customer) => customer.id !== DEFAULT_CUSTOMER.id),
@@ -162,16 +190,6 @@ export default function RepairOrders() {
   );
 
   const checklistItems = draft ? getChecklistItems(draft.deviceType) : [];
-
-  const handleStatusChange = (order: RepairOrder, nextStatus: OrderStatus) => {
-    const today = new Date().toLocaleDateString("pt-BR");
-    const updates: Partial<RepairOrder> = { status: nextStatus };
-    if ((nextStatus === "completed" || nextStatus === "delivered" || nextStatus === "cancelled") && !order.completedDate) {
-      updates.completedDate = today;
-    }
-    updateOrder(order.id, updates);
-    toast.success(`Status da ${order.id} atualizado para ${statusConfig[nextStatus].label}.`);
-  };
 
   const openEditModal = (order: RepairOrder) => {
     setEditingOrderId(order.id);
@@ -183,7 +201,11 @@ export default function RepairOrders() {
         customer.phone.replace(/\D/g, "") === order.customerPhone.replace(/\D/g, "")
     );
     setSelectedEditCustomerId(matchedCustomer?.id || DEFAULT_CUSTOMER.id);
-    setNewTechnicianName("");
+  };
+
+  const openPhotosModal = (order: RepairOrder) => {
+    openEditModal(order);
+    setEditTab("fotos");
   };
 
   const closeEditModal = () => {
@@ -191,7 +213,6 @@ export default function RepairOrders() {
     setDraft(null);
     setEditTab("dados");
     setSelectedEditCustomerId(DEFAULT_CUSTOMER.id);
-    setNewTechnicianName("");
   };
 
   const handleSelectEditCustomer = (customerId: string) => {
@@ -218,18 +239,6 @@ export default function RepairOrders() {
     });
   };
 
-  const handleAddTechnician = () => {
-    if (!draft) return;
-    const normalized = newTechnicianName.trim();
-    if (!normalized) {
-      toast.error("Informe o nome do técnico.");
-      return;
-    }
-    setCustomTechnicians((prev) => (prev.includes(normalized) ? prev : [...prev, normalized]));
-    setDraft({ ...draft, technician: normalized });
-    setNewTechnicianName("");
-  };
-
   const handleSaveEdit = () => {
     if (!editingOrder || !draft) return;
     const normalizedParts = draft.usedParts
@@ -245,7 +254,21 @@ export default function RepairOrders() {
       .filter((part) => part.name && part.qty > 0);
     const partsCost = normalizedParts.reduce((sum, part) => sum + part.qty * part.unitCost, 0);
 
+    const payingNow = editingOrder.paymentStatus !== "pago" && draft.paymentStatus === "pago";
+    const selectedPaymentMethod = payingNow ? askPaymentMethod(editingOrder.paymentMethod || "pix") : editingOrder.paymentMethod;
+    if (payingNow && !selectedPaymentMethod) {
+      toast.error("Meio de pagamento inválido.");
+      return;
+    }
+
+    const completedStatuses: OrderStatus[] = ["completed", "delivered", "cancelled"];
+    const nextCompletedDate =
+      completedStatuses.includes(draft.status) && !editingOrder.completedDate
+        ? new Date().toLocaleDateString("pt-BR")
+        : editingOrder.completedDate;
+
     const result = updateOrder(editingOrder.id, {
+      status: draft.status,
       customerName: draft.customerName,
       customerPhone: draft.customerPhone,
       customerEmail: draft.customerEmail,
@@ -263,12 +286,15 @@ export default function RepairOrders() {
       technician: draft.technician,
       estimatedDelivery: draft.estimatedDelivery,
       paymentStatus: draft.paymentStatus,
+      paymentMethod: selectedPaymentMethod,
+      paymentDate: draft.paymentStatus === "pago" ? new Date().toLocaleDateString("pt-BR") : editingOrder.paymentDate,
       serviceCost: parseCurrency(draft.serviceCost),
       discount: parseCurrency(draft.discount),
       usedParts: normalizedParts,
       partsCost,
       partsUsed: normalizedParts.map((part) => `${part.name} (${part.qty}x)`).join(", "),
       cost: draft.serviceCost || "-",
+      completedDate: nextCompletedDate,
     });
     if (!result.ok) {
       toast.error(result.message || "Não foi possível atualizar a ordem.");
@@ -276,6 +302,35 @@ export default function RepairOrders() {
     }
     toast.success(`Ordem ${editingOrder.id} atualizada.`);
     closeEditModal();
+  };
+
+  const handleTogglePayment = (order: RepairOrder) => {
+    if (order.paymentStatus !== "pago") {
+      const selectedMethod = askPaymentMethod(order.paymentMethod || "pix");
+      if (!selectedMethod) {
+        toast.error("Meio de pagamento inválido.");
+        return;
+      }
+      const result = updateOrder(order.id, {
+        paymentStatus: "pago",
+        paymentMethod: selectedMethod,
+        paymentDate: new Date().toLocaleDateString("pt-BR"),
+      });
+      if (!result.ok) {
+        toast.error(result.message || "Não foi possível marcar como pago.");
+        return;
+      }
+      toast.success(`Pagamento da ${order.id} registrado via ${paymentMethodLabel[selectedMethod]}.`);
+      return;
+    }
+    const confirm = window.confirm(`Desmarcar pagamento da ${order.id} e voltar para pendente?`);
+    if (!confirm) return;
+    const result = updateOrder(order.id, { paymentStatus: "pendente", paymentDate: "" });
+    if (!result.ok) {
+      toast.error(result.message || "Não foi possível desmarcar o pagamento.");
+      return;
+    }
+    toast.success(`Pagamento da ${order.id} desmarcado e sincronizado no financeiro.`);
   };
 
   const handleExitPhotos = async (order: RepairOrder, files: FileList | null) => {
@@ -333,8 +388,8 @@ export default function RepairOrders() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="premium-page space-y-5">
+      <div className="premium-toolbar flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -351,13 +406,15 @@ export default function RepairOrders() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="premium-toolbar flex flex-wrap gap-2 border border-[#E6EDF6] bg-[#FAFCFF]">
         {statusFilters.map((status) => (
           <button
             key={status}
             onClick={() => setFilter(status)}
             className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
-              filter === status ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+              filter === status
+                ? "border border-[#C9D9EB] bg-[#E9F1FB] text-[#1F3A5F]"
+                : "border border-transparent bg-slate-100/70 text-slate-500 hover:bg-slate-200/70"
             }`}
           >
             {status === "all" ? "Todas" : statusConfig[status].label}
@@ -381,11 +438,21 @@ export default function RepairOrders() {
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-5">
         {filtered.map((order, index) => {
           const status = statusConfig[order.status];
           const payment = paymentLabels[order.paymentStatus] || { label: order.paymentStatus, color: "text-muted-foreground" };
           const total = getOrderTotal(order);
+          const hasPhotos = order.entryPhotos.length + order.exitPhotos.length > 0;
+          const isExpanded = !!expandedProblems[order.id];
+          const amountClass = order.paymentStatus === "pago" ? "is-paid" : "is-pending";
+          const paymentBadgeClass =
+            order.paymentStatus === "pago"
+              ? "os-payment-paid"
+              : order.paymentStatus === "pendente"
+              ? "os-payment-pending"
+              : "os-payment-partial";
+          const photosSummary = hasPhotos ? `Entrada ${order.entryPhotos.length} | Saída ${order.exitPhotos.length}` : "Sem fotos";
 
           return (
             <motion.div
@@ -393,134 +460,150 @@ export default function RepairOrders() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.04 }}
-              className="glass-card rounded-xl p-5 transition-shadow hover:shadow-md"
+              className={`glass-card os-card os-status-${order.status}`}
             >
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Wrench className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-semibold text-foreground">{order.id}</span>
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${status.color}`}>{status.label}</span>
-                      </div>
-                      <p className="mt-0.5 text-sm text-muted-foreground">
-                        {order.customerName} - {order.model} ({order.brand})
-                      </p>
-                      <p className="mt-0.5 text-sm text-muted-foreground">{order.reportedProblem}</p>
-                    </div>
-                  </div>
+              <input
+                id={`exit-${order.id}`}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  handleExitPhotos(order, e.target.files);
+                  e.currentTarget.value = "";
+                }}
+              />
 
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="rounded-lg bg-muted/40 p-3 text-right">
-                      <p className="font-semibold text-foreground">{total > 0 ? formatCurrency(total) : "-"}</p>
-                      <p className={`text-xs font-medium ${payment.color}`}>{payment.label}</p>
-                    </div>
-                    <div className="rounded-lg bg-muted/40 p-3 text-right text-xs text-muted-foreground">
-                      <p>Tec: {order.technician || "-"}</p>
-                      <p>Criado: {order.date}</p>
-                    </div>
+              <div className="os-top">
+                <div className="os-identity">
+                  <p className="os-customer">{order.customerName}</p>
+                  <p className="os-device">
+                    {order.model} ({order.brand})
+                  </p>
+                  <div className="os-id-row">
+                    <Wrench className="h-3.5 w-3.5" />
+                    <span>{order.id}</span>
                   </div>
                 </div>
+                <div className="os-status-stack">
+                  <Badge className={`os-badge os-badge-status os-status-${order.status}`}>{status.label}</Badge>
+                  <span className={`os-badge os-badge-payment ${paymentBadgeClass}`}>{payment.label}</span>
+                </div>
+              </div>
 
-                <div className="grid gap-3 border-t border-border pt-4 lg:grid-cols-5">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase text-muted-foreground">Status da ordem</label>
-                    <select
-                      value={order.status}
-                      onChange={(e) => handleStatusChange(order, e.target.value as OrderStatus)}
-                      className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
-                    >
-                      {statusOptions.map((option) => (
-                        <option key={option} value={option}>
-                          {statusConfig[option].label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              <div className="os-body">
+                <p className={`os-description ${isExpanded ? "" : "line-clamp-3"}`}>{order.reportedProblem}</p>
+                {order.reportedProblem && order.reportedProblem.length > 120 && (
+                  <button
+                    type="button"
+                    className="os-expand-btn"
+                    onClick={() => setExpandedProblems((prev) => ({ ...prev, [order.id]: !prev[order.id] }))}
+                  >
+                    {isExpanded ? "ver menos" : "ver mais"}
+                  </button>
+                )}
 
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase text-muted-foreground">Fotos de saída</label>
-                    <div className="flex items-center gap-2">
-                      <label
-                        htmlFor={`exit-${order.id}`}
-                        className="inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border border-input px-3 text-sm text-foreground hover:bg-muted/50"
-                      >
-                        <Camera className="mr-2 h-4 w-4" />
-                        Adicionar
-                      </label>
-                      <input
-                        id={`exit-${order.id}`}
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        className="hidden"
-                        onChange={(e) => {
-                          handleExitPhotos(order, e.target.files);
-                          e.currentTarget.value = "";
+                <div className="os-meta-line">
+                  <span>
+                    <User className="h-3.5 w-3.5" />
+                    Técnico: {order.technician || "-"}
+                  </span>
+                  <span>
+                    <Calendar className="h-3.5 w-3.5" />
+                    Criado: {order.date}
+                  </span>
+                </div>
+
+                <div className="os-context-grid">
+                  <div className="os-photos">
+                    <label className="os-section-label">Fotos</label>
+                    <div className="os-photos-box">
+                      <div className="os-photos-left">
+                        <Camera className="h-4 w-4" />
+                        <span>{photosSummary}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="os-photos-link"
+                        disabled={!hasPhotos}
+                        onClick={() => {
+                          const entryItems = order.entryPhotos.map((src, idx) => ({ src, label: `Entrada ${idx + 1}` }));
+                          const exitItems = order.exitPhotos.map((src, idx) => ({ src, label: `Saída ${idx + 1}` }));
+                          const items = [...entryItems, ...exitItems];
+                          if (items.length > 0) {
+                            setPreviewGallery({
+                              title: `${order.id} - Fotos`,
+                              items,
+                              index: 0,
+                            });
+                          }
                         }}
-                      />
-                      <span className="text-xs text-muted-foreground">{order.exitPhotos.length}/5</span>
+                      >
+                        {hasPhotos ? "ver fotos" : "sem fotos"}
+                      </button>
                     </div>
                   </div>
 
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase text-muted-foreground">PDF</label>
-                    <Button
-                      variant="outline"
+                  <div className="os-total">
+                    <span className="os-section-label">Valor total</span>
+                    <p className={`os-total-value ${amountClass}`}>{total > 0 ? formatCurrency(total) : "-"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="os-footer">
+                <div className="os-footer-actions">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="os-btn-secondary"
+                    onClick={() => handleTogglePayment(order)}
+                  >
+                    {order.paymentStatus === "pago" ? "Desmarcar pago" : "Marcar como pago"}
+                  </Button>
+                  <Button className="os-btn-primary" onClick={() => openEditModal(order)}>
+                    <Pencil className="h-4 w-4" />
+                    Abrir OS
+                  </Button>
+                </div>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="os-menu-btn">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem
                       onClick={() => handleGeneratePdf(order)}
                       disabled={generatingPdfId === order.id}
-                      className="h-10 w-full gap-2"
                     >
-                      <FileText className="h-4 w-4" />
-                      {generatingPdfId === order.id ? "Gerando..." : "Gerar PDF"}
-                    </Button>
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase text-muted-foreground">Detalhes</label>
-                    <Button variant="outline" className="h-10 w-full gap-2" onClick={() => openEditModal(order)}>
-                      <Pencil className="h-4 w-4" />
-                      Abrir e editar
-                    </Button>
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase text-muted-foreground">Excluir</label>
-                    <Button
-                      variant="outline"
-                      className="h-10 w-full gap-2 border-destructive/30 text-destructive hover:bg-destructive/10"
+                      <FileText className="mr-2 h-4 w-4" />
+                      {generatingPdfId === order.id ? "Gerando PDF..." : "Gerar PDF"}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => (document.getElementById(`exit-${order.id}`) as HTMLInputElement | null)?.click()}>
+                      <Camera className="mr-2 h-4 w-4" />
+                      Adicionar foto de saída
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => openPhotosModal(order)}>
+                      <ImageIcon className="mr-2 h-4 w-4" />
+                      Gerenciar fotos
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
                       onClick={() => {
                         if (!window.confirm(`Deseja excluir a ordem ${order.id}?`)) return;
                         deleteOrder(order.id);
-                        toast.success(`Ordem ${order.id} excluida.`);
+                        toast.success(`Ordem ${order.id} excluída.`);
                       }}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="mr-2 h-4 w-4" />
                       Excluir OS
-                    </Button>
-                  </div>
-                </div>
-
-                {order.exitPhotos.length > 0 && (
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                    {order.exitPhotos.map((photo, photoIndex) => (
-                      <button
-                        key={`${order.id}-exit-${photoIndex}`}
-                        onClick={() => handleRemoveExitPhoto(order, photoIndex)}
-                        className="group relative overflow-hidden rounded-lg border border-border"
-                        title="Remover foto de saída"
-                      >
-                        <img src={photo} alt={`Foto de saída ${photoIndex + 1}`} className="h-20 w-full object-cover" />
-                        <span className="absolute inset-x-0 bottom-0 bg-black/60 py-1 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">
-                          Remover
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </motion.div>
           );
@@ -530,13 +613,13 @@ export default function RepairOrders() {
       </div>
 
       <Dialog open={Boolean(editingOrder && draft)} onOpenChange={(open) => (!open ? closeEditModal() : null)}>
-        <DialogContent className="max-h-[92vh] w-[95vw] max-w-[1120px] overflow-hidden p-0">
+        <DialogContent className="max-h-[92vh] w-[96vw] max-w-[1240px] overflow-hidden p-0">
           <DialogHeader className="border-b border-border px-6 py-4">
             <DialogTitle>Editar Ordem {editingOrder?.id}</DialogTitle>
           </DialogHeader>
 
           {editingOrder && draft && (
-            <div className="max-h-[calc(92vh-160px)] space-y-5 overflow-y-auto px-6 py-5">
+            <div className="max-h-[calc(92vh-160px)] space-y-6 overflow-y-auto px-6 py-5">
               <div className="sticky top-0 z-10 -mx-6 border-b border-border bg-background/95 px-6 pb-3 pt-1 backdrop-blur">
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -571,7 +654,8 @@ export default function RepairOrders() {
               </div>
 
               {editTab === "dados" && (
-              <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+              <section className="rounded-2xl border border-border/70 bg-muted/10 p-5 md:p-6">
+                <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Dados da OS</p>
                 <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold uppercase text-muted-foreground">Tipo de dispositivo</label>
@@ -640,14 +724,19 @@ export default function RepairOrders() {
                     ))}
                   </select>
                 </div>
-
-                <div className="rounded-lg border border-border bg-muted/20 p-3 md:col-span-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => handleSelectEditCustomer(DEFAULT_CUSTOMER.id)}>
-                      Marcar como Não Identificado
-                    </Button>
-                    <p className="text-xs text-muted-foreground">Para cadastrar novo cliente, use o módulo Clientes.</p>
-                  </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase text-muted-foreground">Status da ordem</label>
+                  <select
+                    value={draft.status}
+                    onChange={(e) => setDraft({ ...draft, status: e.target.value as OrderStatus })}
+                    className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
+                  >
+                    {statusOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {statusConfig[option].label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -706,20 +795,6 @@ export default function RepairOrders() {
                     className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
                   />
                 </div>
-                <div className="md:col-span-2">
-                  <label className="mb-1.5 block text-xs font-semibold uppercase text-muted-foreground">Cadastrar técnico rápido</label>
-                  <div className="grid gap-2 md:grid-cols-3">
-                    <input
-                      value={newTechnicianName}
-                      onChange={(e) => setNewTechnicianName(e.target.value)}
-                      className="h-10 rounded-lg border border-input bg-card px-3 text-sm sm:col-span-2"
-                      placeholder="Nome do técnico"
-                    />
-                    <Button type="button" variant="outline" className="h-10" onClick={handleAddTechnician}>
-                      Adicionar técnico
-                    </Button>
-                  </div>
-                </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold uppercase text-muted-foreground">Valor do serviço</label>
                   <input
@@ -768,11 +843,12 @@ export default function RepairOrders() {
                   />
                 </div>
                 </div>
-              </div>
+              </section>
               )}
 
               {editTab === "pecas" && (
-              <div className="rounded-xl border border-border/70 p-4">
+              <section className="rounded-2xl border border-border/70 p-5 md:p-6">
+                <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Peças</p>
                 <div className="mb-3 flex items-center justify-between">
                   <Button
                     type="button"
@@ -859,11 +935,12 @@ export default function RepairOrders() {
                     }, 0)
                   )}
                 </div>
-              </div>
+              </section>
               )}
 
               {editTab === "fotos" && (
-              <div className="rounded-xl border border-border/70 p-4">
+              <section className="rounded-2xl border border-border/70 p-5 md:p-6">
+                <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Fotos</p>
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
                   <div>
                     <div className="mb-2 flex items-center justify-between">
@@ -955,11 +1032,12 @@ export default function RepairOrders() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </section>
               )}
 
               {editTab === "checklist" && (
-              <div className="rounded-xl border border-border/70 p-4">
+              <section className="rounded-2xl border border-border/70 p-5 md:p-6">
+                <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Checklist</p>
                 <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {checklistItems.map((item) => (
                     <label key={item} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
@@ -978,7 +1056,7 @@ export default function RepairOrders() {
                     </label>
                   ))}
                 </div>
-              </div>
+              </section>
               )}
             </div>
           )}
@@ -1002,6 +1080,67 @@ export default function RepairOrders() {
                     <p className="text-muted-foreground">Campos: {entry.changedFields.join(", ") || "-"}</p>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(previewGallery)} onOpenChange={(open) => (!open ? setPreviewGallery(null) : null)}>
+        <DialogContent className="max-w-3xl overflow-hidden p-0">
+          {previewGallery && (
+            <div className="bg-black">
+              <div className="flex items-center justify-between border-b border-white/10 px-4 py-2 text-sm font-medium text-white">
+                <span>{previewGallery.title}</span>
+                <span className="text-xs text-white/80">
+                  {previewGallery.index + 1}/{previewGallery.items.length}
+                </span>
+              </div>
+              <div className="relative">
+                <img
+                  src={previewGallery.items[previewGallery.index].src}
+                  alt={previewGallery.items[previewGallery.index].label}
+                  className="max-h-[74vh] w-full object-contain"
+                />
+                {previewGallery.items.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white hover:bg-black/75"
+                      onClick={() =>
+                        setPreviewGallery((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                index: (prev.index - 1 + prev.items.length) % prev.items.length,
+                              }
+                            : prev
+                        )
+                      }
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white hover:bg-black/75"
+                      onClick={() =>
+                        setPreviewGallery((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                index: (prev.index + 1) % prev.items.length,
+                              }
+                            : prev
+                        )
+                      }
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="border-t border-white/10 px-4 py-1.5 text-xs text-white/80">
+                {previewGallery.items[previewGallery.index].label}
               </div>
             </div>
           )}
