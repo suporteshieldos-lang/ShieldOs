@@ -8,17 +8,17 @@ const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 type RoleInput = "admin" | "atendente" | "tecnico";
 
-function parseJwtSub(authorizationHeader: string): string | null {
-  try {
-    const token = authorizationHeader.replace(/^Bearer\s+/i, "").trim();
-    const parts = token.split(".");
-    if (parts.length < 2) return null;
-    const payloadJson = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
-    const payload = JSON.parse(payloadJson) as { sub?: string };
-    return payload?.sub || null;
-  } catch {
-    return null;
-  }
+function extractBearerToken(authorizationHeader: string): string | null {
+  const token = authorizationHeader.replace(/^Bearer\s+/i, "").trim();
+  return token || null;
+}
+
+async function verifyCallerUserId(authorizationHeader: string): Promise<string | null> {
+  const token = extractBearerToken(authorizationHeader);
+  if (!token) return null;
+  const { data, error } = await admin.auth.getUser(token);
+  if (error || !data?.user?.id) return null;
+  return data.user.id;
 }
 
 function json(data: unknown, status = 200) {
@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     }
 
     const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
-    const callerId = parseJwtSub(authHeader);
+    const callerId = await verifyCallerUserId(authHeader);
     if (!callerId) {
       return json({ error: "Missing bearer token" }, 401);
     }

@@ -1,5 +1,4 @@
 ﻿import { useMemo, useState } from "react";
-import jsPDF from "jspdf";
 import logoUrl from "@/assets/logo.jpeg";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -297,6 +296,7 @@ export default function CashPage() {
 
   const exportPdf = async (automatic = false) => {
     if (!selectedSession) return toast.error("Nenhuma movimentação encontrada para a data/período selecionado.");
+    const { default: jsPDF } = await import("jspdf");
     const logo = await loadLogoDataUrl();
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const w = doc.internal.pageSize.getWidth();

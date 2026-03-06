@@ -20,19 +20,17 @@ function json(data: unknown, status = 200) {
   });
 }
 
-function parseJwtSub(authorizationHeader: string): string | null {
-  try {
-    const token = authorizationHeader.replace(/^Bearer\s+/i, "").trim();
-    const parts = token.split(".");
-    if (parts.length < 2) return null;
-    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-    const payloadJson = atob(padded);
-    const payload = JSON.parse(payloadJson) as { sub?: string };
-    return payload?.sub || null;
-  } catch {
-    return null;
-  }
+function extractBearerToken(authorizationHeader: string): string | null {
+  const token = authorizationHeader.replace(/^Bearer\s+/i, "").trim();
+  return token || null;
+}
+
+async function verifyCallerUserId(authorizationHeader: string): Promise<string | null> {
+  const token = extractBearerToken(authorizationHeader);
+  if (!token) return null;
+  const { data, error } = await admin.auth.getUser(token);
+  if (error || !data?.user?.id) return null;
+  return data.user.id;
 }
 
 function randomPassword(length = 12): string {
@@ -62,9 +60,8 @@ Deno.serve(async (req) => {
       return json({ error: "Function misconfigured: missing SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY" }, 500);
     }
 
-    const gatewayUser = req.headers.get("x-supabase-auth-user") || req.headers.get("x-auth-user-id");
     const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
-    const callerId = gatewayUser || parseJwtSub(authHeader);
+    const callerId = await verifyCallerUserId(authHeader);
     if (!callerId) return json({ error: "Missing bearer token" }, 401);
 
     const { data: callerProfile, error: callerProfileError } = await admin

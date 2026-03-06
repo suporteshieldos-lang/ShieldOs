@@ -1,5 +1,4 @@
-﻿import jsPDF from "jspdf";
-import logoUrl from "@/assets/logo.jpeg";
+﻿import logoUrl from "@/assets/logo.jpeg";
 import { RepairOrder, CompanyInfo } from "@/store/appStore";
 
 const NAVY = [30, 58, 95] as const;
@@ -81,6 +80,7 @@ async function normalizePhotoForPdf(dataUrl: string): Promise<string | null> {
 }
 
 export async function generateRepairOrderPDF(order: RepairOrder, responsibilityTerm: string, companyInfo: CompanyInfo) {
+  const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF("p", "mm", "a4");
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -378,7 +378,7 @@ export async function generateRepairOrderPDF(order: RepairOrder, responsibilityT
   doc.setFontSize(7);
   doc.text(`OS Nº: ${orderCode}`, pageW - margin, 12, { align: "right" });
 
-  let termY = 28;
+  const termY = 28;
   doc.setTextColor(...DARK);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.1);
@@ -416,3 +416,6 @@ export async function generateRepairOrderPDF(order: RepairOrder, responsibilityT
   drawFooter();
   doc.save(`${order.id}_${order.customerName.replace(/\s+/g, "_")}.pdf`);
 }
+
+
+

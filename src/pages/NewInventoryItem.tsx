@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ export default function NewInventoryItem() {
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [autoSeeded, setAutoSeeded] = useState(false);
 
-  const loadAux = async () => {
+  const loadAux = useCallback(async () => {
     if (!configured) return;
     try {
       const [cats, sups] = await Promise.all([listInventoryCategories(), listInventorySuppliers()]);
@@ -79,11 +79,11 @@ export default function NewInventoryItem() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível carregar dados auxiliares.");
     }
-  };
+  }, [autoSeeded, configured]);
 
   useEffect(() => {
     void loadAux();
-  }, [configured]);
+  }, [loadAux]);
 
   const handleCreateDefaultCategory = async () => {
     if (!configured) return;
