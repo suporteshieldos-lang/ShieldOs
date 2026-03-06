@@ -35,7 +35,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Carregando...</div>}>
+        <Suspense fallback={<div role="status" aria-live="polite" className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Carregando...</div>}>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/recuperar-acesso" element={<RecoverAccess />} />

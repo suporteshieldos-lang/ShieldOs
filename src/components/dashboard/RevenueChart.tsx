@@ -2,6 +2,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { motion } from "framer-motion";
 import { useMemo } from "react";
 import { getOrderTotal, useAppStore } from "@/store/appStore";
+import { UnifiedChartTooltip, UnifiedLegend } from "@/components/charts/UnifiedChart";
 
 function parseBrDate(value?: string) {
   if (!value) return null;
@@ -57,18 +58,11 @@ export default function RevenueChart() {
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(214 20% 90%)" />
           <XAxis dataKey="month" tick={{ fontSize: 12, fill: "hsl(215 15% 50%)" }} />
           <YAxis tick={{ fontSize: 12, fill: "hsl(215 15% 50%)" }} tickFormatter={(v) => `R$${v.toLocaleString("pt-BR")}`} />
-          <Tooltip
-            formatter={(value: number) => [`R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, "Receita"]}
-            contentStyle={{
-              backgroundColor: "hsl(0 0% 100%)",
-              border: "1px solid hsl(214 20% 90%)",
-              borderRadius: "8px",
-              fontSize: "13px",
-            }}
-          />
+          <Tooltip content={<UnifiedChartTooltip kind="currency" />} />
           <Bar dataKey="receita" fill="hsl(215 60% 22%)" radius={[6, 6, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
+      <UnifiedLegend items={[{ label: "Receita mensal", color: "hsl(215 60% 22%)" }]} />
     </motion.div>
   );
 }

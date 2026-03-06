@@ -24,7 +24,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Legend,
   Line,
   LineChart,
   Pie,
@@ -49,6 +48,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { createId } from "@/lib/id";
 import { PaymentMethod, formatCurrency, getOrderTotal, useAppStore } from "@/store/appStore";
+import { UnifiedChartTooltip, UnifiedLegend } from "@/components/charts/UnifiedChart";
 
 type PeriodPreset = "today" | "last7" | "month" | "custom";
 type DetailKey = "revenue" | "partsCost" | "expense" | "profit" | "cash" | "pending";
@@ -808,8 +808,7 @@ export default function Financial() {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                     <YAxis />
-                    <Tooltip formatter={(v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} />
-                    <Legend />
+                    <Tooltip content={<UnifiedChartTooltip kind="currency" />} />
                     <Line dataKey="receita" stroke="hsl(var(--chart-3))" dot={false} strokeWidth={2.2} />
                     <Line dataKey="custo" stroke="hsl(var(--chart-5))" dot={false} strokeWidth={2.2} />
                     <Line dataKey="despesa" stroke="hsl(var(--warning))" dot={false} strokeWidth={2.2} />
@@ -817,6 +816,14 @@ export default function Financial() {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
+              <UnifiedLegend
+                items={[
+                  { label: "Receita", color: "hsl(var(--chart-3))" },
+                  { label: "Custo", color: "hsl(var(--chart-5))" },
+                  { label: "Despesa", color: "hsl(var(--warning))" },
+                  { label: "Lucro", color: "hsl(var(--chart-1))" },
+                ]}
+              />
               {!hasAnySeriesData ? (
                 <p className="mt-2 text-xs text-muted-foreground">Sem lançamentos no período. O gráfico permanece visível para referência.</p>
               ) : null}
@@ -833,11 +840,12 @@ export default function Financial() {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="os" tick={{ fontSize: 11 }} />
                     <YAxis />
-                    <Tooltip formatter={(v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} />
+                    <Tooltip content={<UnifiedChartTooltip kind="currency" />} />
                     <Bar dataKey="lucro" fill="hsl(var(--chart-2))" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
+              <UnifiedLegend items={[{ label: "Lucro por OS", color: "hsl(var(--chart-2))" }]} />
               {osProfitBars.length === 0 ? <p className="mt-2 text-xs text-muted-foreground">Sem OS pagas no período. Gráfico mantido para comparação.</p> : null}
             </div>
 
@@ -856,8 +864,7 @@ export default function Financial() {
                     </Pie>
                     {hasPaymentData ? (
                       <>
-                        <Tooltip formatter={(v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} />
-                        <Legend />
+                        <Tooltip content={<UnifiedChartTooltip kind="currency" />} />
                       </>
                     ) : null}
                   </PieChart>
@@ -868,6 +875,9 @@ export default function Financial() {
                   </div>
                 ) : null}
               </div>
+              {hasPaymentData ? (
+                <UnifiedLegend items={paymentPieDataSafe.map((item, i) => ({ label: item.name, color: paymentPalette[i % paymentPalette.length] }))} />
+              ) : null}
               {!hasPaymentData ? <p className="mt-2 text-xs text-muted-foreground">Sem pagamentos no período. Gráfico mantido para referência visual.</p> : null}
             </div>
           </div>

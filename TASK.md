@@ -1,18 +1,14 @@
-Read the entire repository again and perform a full engineering review.
+MISSION
 
-Goals:
+Transform this repository into a production-ready SaaS application.
 
-1. Improve architecture where safe.
-2. Split oversized modules when appropriate.
-3. Improve performance and bundle size.
-4. Increase reliability and error handling.
-5. Strengthen Supabase security and RLS safety.
-6. Improve state management organization.
-7. Prepare the application for production SaaS usage.
+PRIORITIES
 
-Constraints:
+1 Improve UI and UX across the entire application
+2 Fix architecture problems
+3 Reduce bundle size
+4 Improve performance
+5 Improve security
+6 Ensure production readiness
 
-- do not break existing functionality
-- keep builds passing
-- work incrementally
-- explain changes briefly
+The application must look like a professional SaaS dashboard similar to Stripe, Vercel or Linear.

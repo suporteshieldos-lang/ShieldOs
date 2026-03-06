@@ -7,6 +7,11 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "
 const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 type RoleInput = "admin" | "atendente" | "tecnico";
+const ALLOWED_ROLES = new Set<RoleInput>(["admin", "atendente", "tecnico"]);
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -77,16 +82,18 @@ Deno.serve(async (req) => {
     const isCompanyAdmin = callerProfile.role === "admin" || callerProfile.role_base === "admin";
     if (!isMaster && !isCompanyAdmin) return json({ error: "Permission denied" }, 403);
 
-    const body = (await req.json()) as { nome?: string; email?: string; role?: RoleInput; company_id?: string };
+    const body = (await req.json()) as { nome?: string; email?: string; role?: string; company_id?: string };
     const nome = (body.nome || "").trim();
-    const role: RoleInput = body.role || "tecnico";
+    const role = (body.role || "tecnico").trim().toLowerCase() as RoleInput;
     if (!nome) return json({ error: "Nome obrigatorio" }, 400);
+    if (!ALLOWED_ROLES.has(role)) return json({ error: "Perfil de acesso invalido" }, 400);
 
     const companyId = isMaster ? body.company_id || null : callerProfile.company_id;
     if (!companyId) return json({ error: "company_id obrigatorio" }, 400);
 
     const baseLogin = sanitizeLogin(nome) || `usuario.${Date.now()}`;
     const email = (body.email || `${baseLogin}.${Date.now()}@acesso.local`).trim().toLowerCase();
+    if (body.email && !isValidEmail(email)) return json({ error: "E-mail invalido" }, 400);
     const temporaryPassword = randomPassword(12);
 
     const { data: created, error: createError } = await admin.auth.admin.createUser({

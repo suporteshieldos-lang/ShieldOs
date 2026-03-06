@@ -4,6 +4,7 @@ import { useAppStore, formatCurrency, getOrderTotal, getOrderProfit } from "@/st
 import { Button } from "@/components/ui/button";
 import { FileDown } from "lucide-react";
 import jsPDF from "jspdf";
+import { UnifiedChartTooltip, UnifiedLegend } from "@/components/charts/UnifiedChart";
 
 const COLORS = ["hsl(215, 60%, 22%)", "hsl(190, 70%, 48%)", "hsl(150, 60%, 45%)", "hsl(40, 90%, 55%)", "hsl(0, 70%, 55%)"];
 
@@ -127,9 +128,10 @@ export default function Reports() {
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip content={<UnifiedChartTooltip kind="number" unit="atendimentos" />} />
             </PieChart>
           </ResponsiveContainer>
+          <UnifiedLegend items={brandData.slice(0, 5).map((item, i) => ({ label: item.name, color: COLORS[i % COLORS.length] }))} />
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-card h-full rounded-2xl border border-border/60 bg-card p-5 shadow-sm">

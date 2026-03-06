@@ -38,6 +38,7 @@ export interface InventorySupplier {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 const SESSION_KEY = "shieldos_session";
+const NETWORK_TIMEOUT_MS = 12000;
 
 let currentAccessToken: string | null = null;
 
@@ -70,12 +71,25 @@ function mergeHeaders(defaultHeaders: HeadersInit, customHeaders?: HeadersInit):
   return merged;
 }
 
+async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = NETWORK_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function refreshSessionInternal(): Promise<AuthSession | null> {
   requireConfig();
   const session = readSession();
   if (!session?.refresh_token) return null;
 
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
     method: "POST",
     headers: baseHeaders(false),
     body: JSON.stringify({ refresh_token: session.refresh_token }),
@@ -105,7 +119,7 @@ async function fetchWithAuth(url: string, init: RequestInit = {}): Promise<Respo
   await ensureAccessToken();
 
   const attempt = async () =>
-    fetch(url, {
+    fetchWithTimeout(url, {
       ...init,
       headers: mergeHeaders(baseHeaders(true), init.headers),
     });
@@ -147,7 +161,7 @@ export function getCurrentAccessToken() {
 
 export async function signInWithPassword(email: string, password: string): Promise<AuthSession> {
   requireConfig();
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
     method: "POST",
     headers: baseHeaders(false),
     body: JSON.stringify({ email, password }),
@@ -163,7 +177,7 @@ export async function signInWithPassword(email: string, password: string): Promi
 
 export async function logLoginAttempt(email: string, success: boolean, reason?: string) {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
-  await fetch(`${SUPABASE_URL}/rest/v1/auth_login_attempts`, {
+  await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/auth_login_attempts`, {
     method: "POST",
     headers: {
       apikey: SUPABASE_ANON_KEY,
@@ -213,7 +227,7 @@ export function readRecoverySessionFromUrl(): AuthSession | null {
 
 export async function requestPasswordRecovery(email: string, redirectTo: string) {
   requireConfig();
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
     method: "POST",
     headers: baseHeaders(false),
     body: JSON.stringify({ email }),
@@ -228,7 +242,7 @@ export async function updatePassword(newPassword: string) {
   if (!currentAccessToken) {
     throw new Error("Sessao invalida para redefinicao de senha.");
   }
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/user`, {
     method: "PUT",
     headers: baseHeaders(true),
     body: JSON.stringify({ password: newPassword }),
@@ -251,7 +265,7 @@ export async function getCurrentUser() {
 export async function signOut() {
   requireConfig();
   if (currentAccessToken) {
-    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+    await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/logout`, {
       method: "POST",
       headers: baseHeaders(true),
     }).catch(() => undefined);

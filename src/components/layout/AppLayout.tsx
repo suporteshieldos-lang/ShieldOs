@@ -1,17 +1,38 @@
+import { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
 import AppHeader from "./AppHeader";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 export default function AppLayout() {
   const location = useLocation();
-  const isDashboard = location.pathname === "/";
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const isDashboard = location.pathname === "/" || location.pathname === "/dashboard";
 
   return (
     <div className="min-h-screen bg-background">
-      <AppSidebar />
-      <div className="ml-[248px] flex min-h-screen flex-col">
-        <AppHeader />
-        <main className={isDashboard ? "flex-1 overflow-y-auto p-4 lg:p-5" : "flex-1 overflow-y-auto p-5 lg:p-6"}>
+      <a
+        href="#main-content"
+        className="sr-only z-50 rounded-lg bg-white px-3 py-2 text-sm font-medium text-[#0F172A] shadow-lg focus:not-sr-only focus:fixed focus:left-4 focus:top-3"
+      >
+        Ir para o conteúdo principal
+      </a>
+      <AppSidebar className="hidden lg:flex" />
+
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+        <SheetContent side="left" className="w-[286px] border-r-0 p-0 sm:max-w-[286px]">
+          <SheetTitle className="sr-only">Menu principal</SheetTitle>
+          <AppSidebar mobile onNavigate={() => setMobileNavOpen(false)} />
+        </SheetContent>
+      </Sheet>
+
+      <div className="flex min-h-screen flex-col lg:ml-[248px]">
+        <AppHeader onMenuClick={() => setMobileNavOpen(true)} />
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className={isDashboard ? "flex-1 overflow-y-auto p-4 lg:p-5" : "flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6"}
+        >
           <div className="mx-auto w-full max-w-[1600px]">
             <Outlet />
           </div>

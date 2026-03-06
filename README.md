@@ -90,3 +90,32 @@ npm run dev
 5. Login at `/login`.
 
 Each authenticated user can only read/write their own row in `app_states` (RLS by `auth.uid()`).
+
+## Production checklist
+
+1. Ensure frontend env vars are configured:
+```sh
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+```
+2. Ensure Supabase Edge Functions secrets are configured:
+```sh
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
+KIWIFY_WEBHOOK_SECRET=...
+WHATSAPP_WEBHOOK_SECRET=...
+ALERTS_AUTOPROCESS=false
+```
+3. Deploy SQL migrations in `supabase/migrations/` in order.
+4. Confirm RLS policies are enabled for tenant tables.
+5. Run quality checks before release:
+```sh
+npm run lint
+npm run test
+npm run build
+```
+6. Keep `ALERTS_AUTOPROCESS=false` until real provider delivery is implemented in `dispatch-alerts`.
+
+## CI
+
+This repository includes CI at `.github/workflows/ci.yml` with lint + test + build on `push`/`pull_request` to `main`.

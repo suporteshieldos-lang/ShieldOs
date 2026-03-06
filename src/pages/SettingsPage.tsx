@@ -74,16 +74,20 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 animate-fade-in">
+    <div className="premium-page mx-auto max-w-4xl animate-fade-in">
+      <section className="saas-card">
+        <h2 className="saas-title">Configurações</h2>
+        <p className="saas-subtitle">Parametrize dados da empresa, regras financeiras e termo legal da operação.</p>
+      </section>
 
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-6 space-y-4">
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="saas-card space-y-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Building className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-foreground">Dados da Assistencia Tecnica</h3>
-            <p className="text-sm text-muted-foreground">Estas informacoes aparecem no cabecalho do PDF da OS.</p>
+            <h3 className="saas-title">Dados da Assistencia Tecnica</h3>
+            <p className="saas-subtitle">Estas informacoes aparecem no cabecalho do PDF da OS.</p>
           </div>
         </div>
 
@@ -122,15 +126,15 @@ export default function SettingsPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
-        className="glass-card rounded-xl p-6 space-y-4"
+        className="saas-card space-y-4"
       >
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <ShieldCheck className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-foreground">Regras do Financeiro e Caixa</h3>
-            <p className="text-sm text-muted-foreground">Essas opcoes alteram o comportamento real dos lancamentos.</p>
+            <h3 className="saas-title">Regras do Financeiro e Caixa</h3>
+            <p className="saas-subtitle">Essas opcoes alteram o comportamento real dos lancamentos.</p>
           </div>
         </div>
 
@@ -201,15 +205,15 @@ export default function SettingsPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="glass-card rounded-xl p-6 space-y-4"
+        className="saas-card space-y-4"
       >
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <FileText className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-foreground">Termo de Responsabilidade</h3>
-            <p className="text-sm text-muted-foreground">Texto exibido na OS e no PDF de retirada.</p>
+            <h3 className="saas-title">Termo de Responsabilidade</h3>
+            <p className="saas-subtitle">Texto exibido na OS e no PDF de retirada.</p>
           </div>
         </div>
 
