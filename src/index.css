@@ -1,7 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -100,11 +98,8 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: "Manrope", "Inter", sans-serif;
-    background-image:
-      radial-gradient(circle at 15% -10%, rgba(56, 189, 248, 0.08), transparent 34%),
-      radial-gradient(circle at 85% -20%, rgba(37, 99, 235, 0.08), transparent 36%),
-      linear-gradient(180deg, #f7faff 0%, #f3f7fc 100%);
+    font-family: "Inter", sans-serif;
+    background-image: none;
     letter-spacing: -0.01em;
   }
   input[type="text"],
@@ -129,25 +124,25 @@
     background: linear-gradient(180deg, hsl(215 60% 12%), hsl(215 65% 8%));
   }
   .glass-card {
-    @apply bg-white/90 backdrop-blur-sm border border-[#E2EAF4] shadow-[0_10px_28px_rgba(15,23,42,0.06)];
+    @apply rounded-xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(15,23,42,0.10)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(15,23,42,0.14)];
   }
   .premium-page {
-    @apply space-y-6;
+    @apply space-y-5;
   }
   .premium-toolbar {
-    @apply rounded-2xl border border-[#E2EAF4] bg-white/90 p-4 shadow-[0_8px_22px_rgba(15,23,42,0.05)];
+    @apply rounded-xl border border-[#E5E7EB] bg-white p-4 shadow-[0_4px_10px_rgba(15,23,42,0.06)];
   }
   .premium-block {
-    @apply rounded-2xl border border-[#E2EAF4] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.05)];
+    @apply rounded-xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(15,23,42,0.10)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(15,23,42,0.14)];
   }
   .premium-table-shell {
-    @apply overflow-hidden rounded-2xl border border-[#E2EAF4] bg-white/95;
+    @apply overflow-hidden rounded-xl border border-[#E5E7EB] bg-white;
   }
   .saas-card {
-    @apply rounded-2xl border border-[#DCE5EF] bg-white p-5 shadow-[0_8px_20px_rgba(15,23,42,0.05)];
+    @apply rounded-xl border border-[#E5E7EB] bg-white p-5 shadow-[0_8px_20px_rgba(15,23,42,0.10)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(15,23,42,0.14)];
   }
   .saas-card-soft {
-    @apply rounded-2xl border border-[#E7EEF6] bg-[#F8FAFC] p-4;
+    @apply rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] p-4;
   }
   .saas-title {
     @apply text-base font-semibold tracking-tight text-[#0F172A];

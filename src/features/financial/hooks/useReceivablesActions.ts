@@ -63,7 +63,7 @@ export function useReceivablesActions({
   fromInputDate: (value: string) => Date | null;
   toInputDate: (date: Date) => string;
   onOpenCashDetail: () => void;
-  navigateToOrders: () => void;
+  navigateToOrders: (orderId?: string) => void;
 }) {
   const [newReceivableCustomer, setNewReceivableCustomer] = useState("");
   const [newReceivablePhone, setNewReceivablePhone] = useState("");
@@ -241,7 +241,7 @@ export function useReceivablesActions({
   const openReceivableRecord = useCallback(
     (row: ReceivableRow) => {
       if (row.sourceKind === "pending_order") {
-        navigateToOrders();
+        navigateToOrders(row.sourceId);
         return;
       }
       onOpenCashDetail();

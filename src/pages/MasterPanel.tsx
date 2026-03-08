@@ -71,7 +71,7 @@ export default function MasterPanel() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="premium-page animate-fade-in">
       <div>
         <h2 className="text-xl font-semibold text-foreground">Painel Master</h2>
         <p className="text-sm text-muted-foreground">Gerencie empresas, assinaturas e usuarios de todo o sistema.</p>
@@ -80,7 +80,7 @@ export default function MasterPanel() {
       {loading ? (
         <div className="text-sm text-muted-foreground">Carregando empresas...</div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div className="premium-table-shell overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/30 text-left">
               <tr>
@@ -161,7 +161,7 @@ export default function MasterPanel() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border">
+      <div className="premium-table-shell overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted/30 text-left">
             <tr>

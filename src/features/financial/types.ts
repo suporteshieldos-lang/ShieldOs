@@ -12,6 +12,9 @@ export type ReceivableRow = {
   daysLate: number;
   dueDate: Date;
   phone: string;
+  paymentMethod?: PaymentMethod;
+  technician?: string;
+  status?: "pago" | "a_vencer" | "vence_hoje" | "atrasado";
   sourceKind: "pending_order" | "cash_entry";
   sourceId: string;
 };

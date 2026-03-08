@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+﻿import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -42,7 +42,7 @@ const steps = [
   { icon: ClipboardCheck, label: "Checklist" },
   { icon: Wrench, label: "Problema" },
   { icon: DollarSign, label: "Financeiro" },
-  { icon: FileText, label: "Revisão" },
+  { icon: FileText, label: "RevisÃ£o" },
 ];
 
 const deviceTypes = [
@@ -109,11 +109,11 @@ export default function NewRepairOrder() {
     const unitCost = parseCurrency(manualPart.unitCost);
     const qty = Math.max(1, parseInt(manualPart.qty, 10) || 1);
     if (!name) {
-      toast.error("Informe o nome da peça avulsa.");
+      toast.error("Informe o nome da peÃ§a avulsa.");
       return;
     }
     if (unitCost <= 0) {
-      toast.error("Informe um custo válido para a peça avulsa.");
+      toast.error("Informe um custo vÃ¡lido para a peÃ§a avulsa.");
       return;
     }
     setSelectedParts((prev) => [
@@ -127,7 +127,7 @@ export default function NewRepairOrder() {
       },
     ]);
     setManualPart({ name: "", unitCost: "", qty: "1" });
-    toast.success("Peça avulsa adicionada à OS.");
+    toast.success("PeÃ§a avulsa adicionada Ã  OS.");
   };
 
   const removeSelectedPart = (inventoryId: string) => {
@@ -145,7 +145,7 @@ export default function NewRepairOrder() {
     setForm((prev) => ({
       ...prev,
       customerName: customer.name,
-      customerPhone: customer.phone || "Não informado",
+      customerPhone: customer.phone || "NÃ£o informado",
       customerEmail: customer.email || "",
       customerCpf: customer.cpf || "",
     }));
@@ -209,7 +209,7 @@ export default function NewRepairOrder() {
     if (!files) return;
     const remaining = 5 - entryPhotos.length;
     if (remaining <= 0) {
-      toast.error("Máximo de 5 fotos de entrada atingido.");
+      toast.error("MÃ¡ximo de 5 fotos de entrada atingido.");
       return;
     }
     const toProcess = Array.from(files).slice(0, remaining);
@@ -245,11 +245,11 @@ export default function NewRepairOrder() {
     const finalDevicePassword =
       passwordType === "pattern"
         ? patternPoints.length
-          ? `Padrão: ${patternPoints.join("-")}`
+          ? `PadrÃ£o: ${patternPoints.join("-")}`
           : ""
         : passwordType === "numeric"
           ? form.devicePassword.trim()
-            ? `Numérica: ${form.devicePassword.trim()}`
+            ? `NumÃ©rica: ${form.devicePassword.trim()}`
             : ""
           : passwordType === "text"
             ? form.devicePassword.trim()
@@ -303,7 +303,7 @@ export default function NewRepairOrder() {
     });
     const addResult = addOrder(order);
     if (!addResult.ok) {
-      toast.error(addResult.message || "Não foi possível criar a OS.");
+      toast.error(addResult.message || "NÃ£o foi possÃ­vel criar a OS.");
       return;
     }
     await generateRepairOrderPDF(order, responsibilityTerm, companyInfo);
@@ -323,12 +323,12 @@ export default function NewRepairOrder() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 animate-fade-in">
+    <div className="premium-page mx-auto max-w-3xl animate-fade-in">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/ordens")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h2 className="text-xl font-semibold text-foreground">Nova Ordem de Serviço</h2>
+        <h2 className="text-xl font-semibold text-foreground">Nova Ordem de ServiÃ§o</h2>
       </div>
 
       <div className="flex items-center justify-between">
@@ -362,7 +362,7 @@ export default function NewRepairOrder() {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -20 }}
           transition={{ duration: 0.2 }}
-          className="glass-card rounded-xl p-6"
+          className="premium-block p-6"
         >
           {step === 0 && (
             <div className="space-y-4">
@@ -389,7 +389,7 @@ export default function NewRepairOrder() {
                   Cadastro rapido
                 </Button>
                 <Button variant="outline" onClick={() => selectCustomer(DEFAULT_CUSTOMER.id)}>
-                  Não identificado
+                  NÃ£o identificado
                 </Button>
               </div>
 
@@ -466,7 +466,7 @@ export default function NewRepairOrder() {
                       className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs ${passwordType === "numeric" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}
                     >
                       <Hash className="h-3.5 w-3.5" />
-                      Numérica
+                      NumÃ©rica
                     </button>
                     <button
                       type="button"
@@ -490,7 +490,7 @@ export default function NewRepairOrder() {
                       className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs ${passwordType === "pattern" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}
                     >
                       <Grid3X3 className="h-3.5 w-3.5" />
-                      Padrão
+                      PadrÃ£o
                     </button>
                     <button
                       type="button"
@@ -506,7 +506,7 @@ export default function NewRepairOrder() {
                   </div>
                 </div>
                 <div>
-                  <label className={labelClass}>Senha / padrão</label>
+                  <label className={labelClass}>Senha / padrÃ£o</label>
                   {(passwordType === "numeric" || passwordType === "text") && (
                     <input
                       className={inputClass}
@@ -535,10 +535,10 @@ export default function NewRepairOrder() {
                       </div>
                       <div className="flex gap-2">
                         <Button type="button" variant="outline" size="sm" onClick={() => setPatternPoints([])}>
-                          Limpar padrão
+                          Limpar padrÃ£o
                         </Button>
                         <span className="text-xs text-muted-foreground self-center">
-                          Sequência: {patternPoints.length ? patternPoints.join("-") : "nenhuma"}
+                          SequÃªncia: {patternPoints.length ? patternPoints.join("-") : "nenhuma"}
                         </span>
                       </div>
                     </div>
@@ -546,12 +546,12 @@ export default function NewRepairOrder() {
                   {passwordType === "none" && <input className={inputClass} disabled value="Sem senha informada" />}
                 </div>
                 <div>
-                  <label className={labelClass}>Acessórios</label>
+                  <label className={labelClass}>AcessÃ³rios</label>
                   <input className={inputClass} value={form.accessories} onChange={(e) => updateForm("accessories", e.target.value)} />
                 </div>
               </div>
               <div>
-                <label className={labelClass}>Observações sobre estado do aparelho</label>
+                <label className={labelClass}>ObservaÃ§Ãµes sobre estado do aparelho</label>
                 <textarea
                   className="min-h-[80px] w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
                   value={form.conditionNotes}
@@ -568,16 +568,16 @@ export default function NewRepairOrder() {
                 <span className="font-medium text-foreground">
                   {passwordType === "pattern"
                     ? patternPoints.length
-                      ? `Padrão (${patternPoints.join("-")})`
-                      : "Padrão não desenhado"
+                      ? `PadrÃ£o (${patternPoints.join("-")})`
+                      : "PadrÃ£o nÃ£o desenhado"
                     : passwordType === "numeric"
                       ? form.devicePassword
-                        ? `Numérica (${form.devicePassword})`
-                        : "Numérica não informada"
+                        ? `NumÃ©rica (${form.devicePassword})`
+                        : "NumÃ©rica nÃ£o informada"
                       : passwordType === "text"
                         ? form.devicePassword
                           ? `Letras (${form.devicePassword})`
-                          : "Letras não informada"
+                          : "Letras nÃ£o informada"
                         : "Sem senha"}
                 </span>
               </div>
@@ -666,7 +666,7 @@ export default function NewRepairOrder() {
                   <input className={inputClass} value={form.technician} onChange={(e) => updateForm("technician", e.target.value)} />
                 </div>
                 <div>
-                  <label className={labelClass}>PRevisão de entrega</label>
+                  <label className={labelClass}>PRevisÃ£o de entrega</label>
                   <input className={inputClass} type="date" value={form.estimatedDelivery} onChange={(e) => updateForm("estimatedDelivery", e.target.value)} />
                 </div>
               </div>
@@ -678,7 +678,7 @@ export default function NewRepairOrder() {
               <h3 className="text-lg font-semibold text-foreground">Dados Financeiros</h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className={labelClass}>Valor do Serviço</label>
+                  <label className={labelClass}>Valor do ServiÃ§o</label>
                   <input className={inputClass} placeholder="R$ 0,00" value={form.serviceCost} onChange={(e) => updateForm("serviceCost", e.target.value)} />
                 </div>
                 <div>
@@ -705,10 +705,10 @@ export default function NewRepairOrder() {
               </div>
 
               <div className="space-y-3 border-t border-border pt-4">
-                <h4 className="text-sm font-semibold text-foreground">Peças Utilizadas</h4>
+                <h4 className="text-sm font-semibold text-foreground">PeÃ§as Utilizadas</h4>
                 {availableParts.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-                    Nenhuma peça em estoque. Cadastre em <button className="font-semibold text-primary" onClick={() => navigate("/estoque/nova")}>Nova Peça</button>.
+                    Nenhuma peÃ§a em estoque. Cadastre em <button className="font-semibold text-primary" onClick={() => navigate("/estoque/nova")}>Nova PeÃ§a</button>.
                   </div>
                 ) : (
                   <div className="max-h-48 space-y-2 overflow-y-auto">
@@ -761,11 +761,11 @@ export default function NewRepairOrder() {
                   </div>
                 )}
                 <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pe�a avulsa (n�o cadastrada no estoque)</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Peça avulsa (não cadastrada no estoque)</p>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
                     <input
                       className={`${inputClass} sm:col-span-6`}
-                      placeholder="Nome da pe�a"
+                      placeholder="Nome da peça"
                       value={manualPart.name}
                       onChange={(e) => setManualPart((prev) => ({ ...prev, name: e.target.value }))}
                     />
@@ -808,7 +808,7 @@ export default function NewRepairOrder() {
                   </div>
                 )}
                 {selectedParts.length > 0 && (
-                  <div className="text-right text-sm font-medium text-foreground">Custo total de peças: {formatCurrency(partsCostTotal)}</div>
+                  <div className="text-right text-sm font-medium text-foreground">Custo total de peÃ§as: {formatCurrency(partsCostTotal)}</div>
                 )}
               </div>
             </div>
@@ -816,7 +816,7 @@ export default function NewRepairOrder() {
 
           {step === 5 && (
             <div className="space-y-5">
-              <h3 className="text-lg font-semibold text-foreground">Revisão e Termo de Responsabilidade</h3>
+              <h3 className="text-lg font-semibold text-foreground">RevisÃ£o e Termo de Responsabilidade</h3>
               <div className="rounded-lg border border-border p-4 space-y-3">
                 <p className="text-xs font-semibold uppercase text-muted-foreground">Termo de Responsabilidade</p>
                 <div className="max-h-40 overflow-y-auto rounded bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">
@@ -844,7 +844,7 @@ export default function NewRepairOrder() {
         </Button>
         {step < steps.length - 1 ? (
           <Button onClick={() => setStep(step + 1)} disabled={!canNext()} className="gap-2">
-            Próximo
+            PrÃ³ximo
             <ArrowRight className="h-4 w-4" />
           </Button>
         ) : (
@@ -897,6 +897,7 @@ export default function NewRepairOrder() {
     </div>
   );
 }
+
 
 
 

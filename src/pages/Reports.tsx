@@ -88,7 +88,7 @@ export default function Reports() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="premium-page animate-fade-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm text-muted-foreground">
           Visão geral dos resultados operacionais.
@@ -100,26 +100,26 @@ export default function Reports() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="glass-card flex h-full flex-col justify-center rounded-2xl border border-border/60 bg-card p-4 text-center shadow-sm">
+        <div className="premium-block flex h-full flex-col justify-center p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{orders.length}</p>
           <p className="text-xs text-muted-foreground">Total de OS</p>
         </div>
-        <div className="glass-card flex h-full flex-col justify-center rounded-2xl border border-border/60 bg-card p-4 text-center shadow-sm">
+        <div className="premium-block flex h-full flex-col justify-center p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{formatCurrency(totalRevenue)}</p>
           <p className="text-xs text-muted-foreground">Receita</p>
         </div>
-        <div className="glass-card flex h-full flex-col justify-center rounded-2xl border border-border/60 bg-card p-4 text-center shadow-sm">
+        <div className="premium-block flex h-full flex-col justify-center p-4 text-center">
           <p className="text-2xl font-bold text-success">{formatCurrency(totalProfit)}</p>
           <p className="text-xs text-muted-foreground">Lucro</p>
         </div>
-        <div className="glass-card flex h-full flex-col justify-center rounded-2xl border border-border/60 bg-card p-4 text-center shadow-sm">
+        <div className="premium-block flex h-full flex-col justify-center p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{recurringCustomers.length}</p>
           <p className="text-xs text-muted-foreground">Clientes recorrentes</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass-card h-full rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="premium-block h-full p-5">
           <h3 className="mb-4 text-base font-semibold text-foreground">Marcas mais atendidas</h3>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
@@ -134,7 +134,7 @@ export default function Reports() {
           <UnifiedLegend items={brandData.slice(0, 5).map((item, i) => ({ label: item.name, color: COLORS[i % COLORS.length] }))} />
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-card h-full rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="premium-block h-full p-5">
           <h3 className="mb-4 text-base font-semibold text-foreground">Desempenho dos técnicos</h3>
           <div className="space-y-3">
             {Object.entries(techStats).map(([name, stats]) => (
@@ -150,7 +150,7 @@ export default function Reports() {
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card h-full rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="premium-block h-full p-5">
           <h3 className="mb-4 text-base font-semibold text-foreground">Problemas mais comuns</h3>
           <div className="space-y-2">
             {topProblems.map(([problem, count], i) => (
@@ -163,7 +163,7 @@ export default function Reports() {
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card h-full rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="premium-block h-full p-5">
           <h3 className="mb-4 text-base font-semibold text-foreground">Peças mais usadas</h3>
           <div className="space-y-2">
             {topParts.map(([name, count], i) => (

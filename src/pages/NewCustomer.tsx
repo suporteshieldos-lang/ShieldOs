@@ -38,7 +38,7 @@ export default function NewCustomer() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
+    <div className="premium-page mx-auto max-w-2xl animate-fade-in">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/clientes")}>
           <ArrowLeft className="h-5 w-5" />
@@ -46,7 +46,7 @@ export default function NewCustomer() {
         <h2 className="text-xl font-semibold text-foreground">Novo Cliente</h2>
       </div>
 
-      <div className="glass-card rounded-xl p-6">
+      <div className="premium-block p-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className={labelClass}>Nome *</label>

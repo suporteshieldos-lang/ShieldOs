@@ -44,27 +44,27 @@ export default function Warranties() {
   const expired = warranties.filter((w) => w.status === "vencida").length;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="premium-page animate-fade-in">
 
       <div className="grid grid-cols-3 gap-3">
-        <div className="glass-card rounded-xl p-4 text-center">
+        <div className="premium-block p-4 text-center">
           <CheckCircle2 className="mx-auto h-6 w-6 text-success mb-1" />
           <p className="text-2xl font-bold text-foreground">{active}</p>
           <p className="text-xs text-muted-foreground">Ativas</p>
         </div>
-        <div className="glass-card rounded-xl p-4 text-center">
+        <div className="premium-block p-4 text-center">
           <AlertTriangle className="mx-auto h-6 w-6 text-warning mb-1" />
           <p className="text-2xl font-bold text-foreground">{expiring}</p>
           <p className="text-xs text-muted-foreground">Vencendo</p>
         </div>
-        <div className="glass-card rounded-xl p-4 text-center">
+        <div className="premium-block p-4 text-center">
           <Shield className="mx-auto h-6 w-6 text-muted-foreground mb-1" />
           <p className="text-2xl font-bold text-foreground">{expired}</p>
           <p className="text-xs text-muted-foreground">Vencidas</p>
         </div>
       </div>
 
-      <div className="glass-card rounded-xl overflow-hidden">
+      <div className="premium-table-shell">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30 text-left">

@@ -34,7 +34,7 @@ export function FinancialCharts({
 }) {
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-      <div className="glass-card rounded-xl border border-border/70 bg-card p-4">
+      <div className="premium-block p-4">
         <div className="mb-3 flex items-center gap-2">
           <LineChartIcon className="h-4 w-4 text-muted-foreground" />
           <h3 className="font-semibold text-foreground">Evolução: receita, custos e lucro</h3>
@@ -59,7 +59,7 @@ export function FinancialCharts({
         ) : null}
       </div>
 
-      <div className="glass-card rounded-xl border border-border/70 bg-card p-4">
+      <div className="premium-block p-4">
         <div className="mb-3 flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
           <h3 className="font-semibold text-foreground">Lucro por OS paga</h3>
@@ -78,7 +78,7 @@ export function FinancialCharts({
         {osProfitBars.length === 0 ? <p className="mt-2 text-xs text-muted-foreground">Sem OS pagas no período. Gráfico mantido para comparação.</p> : null}
       </div>
 
-      <div className="glass-card rounded-xl border border-border/70 bg-card p-4">
+      <div className="premium-block p-4">
         <div className="mb-3 flex items-center gap-2">
           <DollarSign className="h-4 w-4 text-muted-foreground" />
           <h3 className="font-semibold text-foreground">Composição por pagamento</h3>

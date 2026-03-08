@@ -1,0 +1,60 @@
+:root {
+  /* BRAND */
+  --shield-primary: #0F2A44;
+  --shield-primary-light: #173A5E;
+  --shield-accent: #6EC1D6;
+
+  /* NEUTRAL */
+  --shield-bg: #F7F9FC;
+  --shield-card: #FFFFFF;
+  --shield-border: #E6EAF0;
+
+  /* TEXT */
+  --shield-text: #0F172A;
+  --shield-text-light: #64748B;
+
+  /* HOVER */
+  --shield-hover: #F1F7FB;
+}
+
+.card-saasa {
+  background: var(--shield-card);
+  border: 1px solid var(--shield-border);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.card-saasa:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 45px -20px rgba(15, 42, 68, 0.25);
+}
+
+.table-saasa thead {
+  background: var(--shield-hover);
+}
+
+.table-saasa th {
+  color: var(--shield-primary);
+  font-weight: 600;
+}
+
+.table-saasa tbody tr {
+  transition: background 0.15s ease;
+}
+
+.table-saasa tbody tr:hover {
+  background: var(--shield-hover);
+}
+
+.premium-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
+  transition: box-shadow 0.2s ease;
+}
+
+.premium-card:hover {
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.09);
+}

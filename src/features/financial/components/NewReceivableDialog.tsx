@@ -41,7 +41,7 @@ export function NewReceivableDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Novo recebível avulso</DialogTitle>
+          <DialogTitle>Novo recebivel avulso</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
@@ -53,7 +53,7 @@ export function NewReceivableDialog({
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 99999-9999" />
           </div>
           <div>
-            <Label className="text-xs uppercase text-muted-foreground">Descrição</Label>
+            <Label className="text-xs uppercase text-muted-foreground">Descricao</Label>
             <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex.: Mensalidade plano suporte" />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -74,16 +74,16 @@ export function NewReceivableDialog({
               >
                 <option value="pix">Pix</option>
                 <option value="dinheiro">Dinheiro</option>
-                <option value="debito">Débito</option>
-                <option value="credito">Crédito</option>
-                <option value="cartao">Cartão</option>
+                <option value="debito">Debito</option>
+                <option value="credito">Credito</option>
+                <option value="cartao">Cartao</option>
                 <option value="outro">Outros</option>
               </select>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={onSubmit}>Adicionar recebível</Button>
+            <Button onClick={onSubmit}>Adicionar recebivel</Button>
           </div>
         </div>
       </DialogContent>
