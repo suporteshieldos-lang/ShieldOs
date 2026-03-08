@@ -38,6 +38,7 @@ export interface InventorySupplier {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 const SESSION_KEY = "shieldos_session";
+const NETWORK_TIMEOUT_MS = 12000;
 
 let currentAccessToken: string | null = null;
 
@@ -70,12 +71,25 @@ function mergeHeaders(defaultHeaders: HeadersInit, customHeaders?: HeadersInit):
   return merged;
 }
 
+async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = NETWORK_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function refreshSessionInternal(): Promise<AuthSession | null> {
   requireConfig();
   const session = readSession();
   if (!session?.refresh_token) return null;
 
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
     method: "POST",
     headers: baseHeaders(false),
     body: JSON.stringify({ refresh_token: session.refresh_token }),
@@ -105,7 +119,7 @@ async function fetchWithAuth(url: string, init: RequestInit = {}): Promise<Respo
   await ensureAccessToken();
 
   const attempt = async () =>
-    fetch(url, {
+    fetchWithTimeout(url, {
       ...init,
       headers: mergeHeaders(baseHeaders(true), init.headers),
     });
@@ -147,7 +161,7 @@ export function getCurrentAccessToken() {
 
 export async function signInWithPassword(email: string, password: string): Promise<AuthSession> {
   requireConfig();
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
     method: "POST",
     headers: baseHeaders(false),
     body: JSON.stringify({ email, password }),
@@ -163,7 +177,7 @@ export async function signInWithPassword(email: string, password: string): Promi
 
 export async function logLoginAttempt(email: string, success: boolean, reason?: string) {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
-  await fetch(`${SUPABASE_URL}/rest/v1/auth_login_attempts`, {
+  await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/auth_login_attempts`, {
     method: "POST",
     headers: {
       apikey: SUPABASE_ANON_KEY,
@@ -213,11 +227,14 @@ export function readRecoverySessionFromUrl(): AuthSession | null {
 
 export async function requestPasswordRecovery(email: string, redirectTo: string) {
   requireConfig();
-  await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
     method: "POST",
     headers: baseHeaders(false),
     body: JSON.stringify({ email }),
   });
+  if (!response.ok) {
+    throw new Error("Nao foi possivel solicitar recuperacao de senha.");
+  }
 }
 
 export async function updatePassword(newPassword: string) {
@@ -225,7 +242,7 @@ export async function updatePassword(newPassword: string) {
   if (!currentAccessToken) {
     throw new Error("Sessao invalida para redefinicao de senha.");
   }
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/user`, {
     method: "PUT",
     headers: baseHeaders(true),
     body: JSON.stringify({ password: newPassword }),
@@ -248,7 +265,7 @@ export async function getCurrentUser() {
 export async function signOut() {
   requireConfig();
   if (currentAccessToken) {
-    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+    await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/logout`, {
       method: "POST",
       headers: baseHeaders(true),
     }).catch(() => undefined);
@@ -582,9 +599,8 @@ export async function updateInventoryItemSecure(input: {
 
 export async function isMasterAdmin(): Promise<boolean> {
   requireConfig();
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/is_super_admin`, {
+  const response = await fetchWithAuth(`${SUPABASE_URL}/rest/v1/rpc/is_super_admin`, {
     method: "POST",
-    headers: baseHeaders(true),
     body: "{}",
   });
   if (!response.ok) return false;
@@ -594,9 +610,8 @@ export async function isMasterAdmin(): Promise<boolean> {
 
 export async function canCurrentUserLogin(): Promise<boolean> {
   requireConfig();
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/can_current_user_login`, {
+  const response = await fetchWithAuth(`${SUPABASE_URL}/rest/v1/rpc/can_current_user_login`, {
     method: "POST",
-    headers: baseHeaders(true),
     body: "{}",
   });
   if (!response.ok) return false;
@@ -638,11 +653,9 @@ export interface MasterUserRow {
 
 export async function listCompaniesForMaster(): Promise<CompanySubscriptionView[]> {
   requireConfig();
-  const response = await fetch(
+  const response = await fetchWithAuth(
     `${SUPABASE_URL}/rest/v1/companies?select=id,nome_empresa,email_principal,plano,status_assinatura,vencimento,created_at&order=created_at.desc`,
-    {
-      headers: baseHeaders(true),
-    }
+    { method: "GET" }
   );
   if (!response.ok) {
     throw new Error("Nao foi possivel listar empresas.");
@@ -656,9 +669,8 @@ export async function masterUpdateCompany(
   vencimento: string
 ) {
   requireConfig();
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/master_update_company`, {
+  const response = await fetchWithAuth(`${SUPABASE_URL}/rest/v1/rpc/master_update_company`, {
     method: "POST",
-    headers: baseHeaders(true),
     body: JSON.stringify({
       p_company_id: companyId,
       p_status: status,
@@ -672,11 +684,9 @@ export async function masterUpdateCompany(
 
 export async function listUsersForMaster(): Promise<MasterUserRow[]> {
   requireConfig();
-  const response = await fetch(
+  const response = await fetchWithAuth(
     `${SUPABASE_URL}/rest/v1/users?select=id,nome,email,role,role_system,ativo,company_id,created_at&order=created_at.desc`,
-    {
-      headers: baseHeaders(true),
-    }
+    { method: "GET" }
   );
   if (!response.ok) {
     throw new Error("Nao foi possivel listar usuarios.");
@@ -689,7 +699,7 @@ export async function masterUpdateUser(
   updates: Partial<Pick<MasterUserRow, "ativo" | "role" | "nome">>
 ) {
   requireConfig();
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {
+  const response = await fetchWithAuth(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {
     method: "PATCH",
     headers: {
       ...baseHeaders(true),
@@ -704,11 +714,9 @@ export async function masterUpdateUser(
 
 export async function listTeamMembers(): Promise<TeamMember[]> {
   requireConfig();
-  const response = await fetch(
+  const response = await fetchWithAuth(
     `${SUPABASE_URL}/rest/v1/users?select=id,company_id,nome,email,role,ativo,is_company_owner,created_at&order=created_at.desc`,
-    {
-      headers: baseHeaders(true),
-    }
+    { method: "GET" }
   );
   if (!response.ok) {
     throw new Error("Nao foi possivel listar equipe.");
@@ -718,7 +726,7 @@ export async function listTeamMembers(): Promise<TeamMember[]> {
 
 export async function updateTeamMember(userId: string, updates: Partial<Pick<TeamMember, "role" | "ativo" | "nome">>) {
   requireConfig();
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {
+  const response = await fetchWithAuth(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {
     method: "PATCH",
     headers: {
       ...baseHeaders(true),
@@ -734,9 +742,8 @@ export async function updateTeamMember(userId: string, updates: Partial<Pick<Tea
 export async function inviteTeamMember(payload: { nome: string; email: string; role: "admin" | "atendente" | "tecnico" }) {
   requireConfig();
   try {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/invite-team-member`, {
+    const response = await fetchWithAuth(`${SUPABASE_URL}/functions/v1/invite-team-member`, {
       method: "POST",
-      headers: baseHeaders(true),
       body: JSON.stringify(payload),
     });
     if (!response.ok) {
@@ -760,9 +767,8 @@ export async function createCashManualEntry(payload: {
   notes?: string | null;
 }) {
   requireConfig();
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/create_cash_manual_entry`, {
+  const response = await fetchWithAuth(`${SUPABASE_URL}/rest/v1/rpc/create_cash_manual_entry`, {
     method: "POST",
-    headers: baseHeaders(true),
     body: JSON.stringify({
       p_category: payload.category,
       p_description: payload.description,
@@ -788,9 +794,8 @@ export async function createCashAdjustment(payload: {
   amountCents: number;
 }) {
   requireConfig();
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/create_cash_adjustment`, {
+  const response = await fetchWithAuth(`${SUPABASE_URL}/rest/v1/rpc/create_cash_adjustment`, {
     method: "POST",
-    headers: baseHeaders(true),
     body: JSON.stringify({
       p_adjust_type: payload.adjustType,
       p_reason_type: payload.reasonType,
@@ -809,9 +814,8 @@ export async function createCashAdjustment(payload: {
 
 export async function createTeamMemberCredentials(payload: { nome: string; email?: string; role: "admin" | "atendente" | "tecnico" }) {
   requireConfig();
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/create-team-member-credentials`, {
+  const response = await fetchWithAuth(`${SUPABASE_URL}/functions/v1/create-team-member-credentials`, {
     method: "POST",
-    headers: baseHeaders(true),
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
@@ -850,9 +854,9 @@ export async function listWhatsAppMessages(input: {
   if (!phone) return [];
   const limit = input.limit || 120;
   const orderFilter = input.orderId ? `&order_id=eq.${encodeURIComponent(input.orderId)}` : "";
-  const response = await fetch(
+  const response = await fetchWithAuth(
     `${SUPABASE_URL}/rest/v1/whatsapp_messages?select=id,company_id,order_id,customer_phone,customer_name,direction,body,status,provider,provider_message_id,created_at&company_id=eq.${input.companyId}&customer_phone=eq.${phone}${orderFilter}&order=created_at.asc&limit=${limit}`,
-    { headers: baseHeaders(true) }
+    { method: "GET" }
   );
   if (!response.ok) throw new Error("Nao foi possivel carregar as mensagens do WhatsApp.");
   return response.json();
@@ -869,10 +873,10 @@ export async function createOutboundWhatsAppMessage(input: {
   requireConfig();
   const phone = normalizePhoneDigits(input.customerPhone);
   if (!phone) throw new Error("Telefone do cliente invalido.");
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/whatsapp_messages`, {
+  if (!input.body?.trim()) throw new Error("Mensagem vazia.");
+  const response = await fetchWithAuth(`${SUPABASE_URL}/rest/v1/whatsapp_messages`, {
     method: "POST",
     headers: {
-      ...baseHeaders(true),
       Prefer: "return=representation",
     },
     body: JSON.stringify([

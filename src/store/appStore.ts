@@ -535,7 +535,11 @@ function toPayload(
 
 async function persist(state: AppStore) {
   const payload = toPayload(state);
-  localStorage.setItem(LOCAL_STATE_KEY, JSON.stringify(payload));
+  try {
+    localStorage.setItem(LOCAL_STATE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn("Falha ao salvar backup local do estado.", error);
+  }
   scheduleRemotePersist(state);
 }
 

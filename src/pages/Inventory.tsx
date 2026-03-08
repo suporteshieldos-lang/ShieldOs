@@ -317,6 +317,11 @@ export default function Inventory() {
 
   return (
     <div className="premium-page">
+      <section className="saas-card">
+        <h2 className="saas-title">Estoque</h2>
+        <p className="saas-subtitle">Controle de peças, status de estoque, margem e vendas diretas no balcão.</p>
+      </section>
+
       <div className="premium-toolbar flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -346,7 +351,7 @@ export default function Inventory() {
           const isLow = part.qty <= part.minQty;
           const isOut = part.qty === 0;
           return (
-            <div key={part.id} className="glass-card rounded-xl border border-border p-4">
+            <div key={part.id} className="saas-card p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold text-foreground">{part.name}</p>

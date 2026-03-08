@@ -388,7 +388,12 @@ export default function RepairOrders() {
   };
 
   return (
-    <div className="premium-page space-y-5">
+    <div className="premium-page">
+      <section className="saas-card">
+        <h2 className="saas-title">Ordens de Serviço</h2>
+        <p className="saas-subtitle">Fluxo operacional completo: triagem, diagnóstico, execução, entrega e cobrança.</p>
+      </section>
+
       <div className="premium-toolbar flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -406,7 +411,7 @@ export default function RepairOrders() {
         </Button>
       </div>
 
-      <div className="premium-toolbar flex flex-wrap gap-2 border border-[#E6EDF6] bg-[#FAFCFF]">
+      <div className="saas-card-soft flex flex-wrap gap-2">
         {statusFilters.map((status) => (
           <button
             key={status}
@@ -422,7 +427,7 @@ export default function RepairOrders() {
         ))}
       </div>
       {showOnlyUnpaid && (
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-foreground">
+        <div className="saas-card-soft flex items-center gap-2 border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-foreground">
           Filtro ativo: OS sem pagamento
           <Button
             type="button"

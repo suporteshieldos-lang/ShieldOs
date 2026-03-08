@@ -170,6 +170,9 @@ Deno.serve(async (req) => {
     if (req.method !== "POST") {
       return new Response(JSON.stringify({ ok: false, error: "Method not allowed" }), { status: 405 });
     }
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      return new Response(JSON.stringify({ ok: false, error: "Function misconfigured" }), { status: 500 });
+    }
 
     const rawBody = await req.text();
     const url = new URL(req.url);

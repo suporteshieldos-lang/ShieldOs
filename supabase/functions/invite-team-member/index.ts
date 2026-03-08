@@ -7,18 +7,23 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "
 const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 type RoleInput = "admin" | "atendente" | "tecnico";
+const ALLOWED_ROLES = new Set<RoleInput>(["admin", "atendente", "tecnico"]);
 
-function parseJwtSub(authorizationHeader: string): string | null {
-  try {
-    const token = authorizationHeader.replace(/^Bearer\s+/i, "").trim();
-    const parts = token.split(".");
-    if (parts.length < 2) return null;
-    const payloadJson = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
-    const payload = JSON.parse(payloadJson) as { sub?: string };
-    return payload?.sub || null;
-  } catch {
-    return null;
-  }
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function extractBearerToken(authorizationHeader: string): string | null {
+  const token = authorizationHeader.replace(/^Bearer\s+/i, "").trim();
+  return token || null;
+}
+
+async function verifyCallerUserId(authorizationHeader: string): Promise<string | null> {
+  const token = extractBearerToken(authorizationHeader);
+  if (!token) return null;
+  const { data, error } = await admin.auth.getUser(token);
+  if (error || !data?.user?.id) return null;
+  return data.user.id;
 }
 
 function json(data: unknown, status = 200) {
@@ -50,7 +55,7 @@ Deno.serve(async (req) => {
     }
 
     const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
-    const callerId = parseJwtSub(authHeader);
+    const callerId = await verifyCallerUserId(authHeader);
     if (!callerId) {
       return json({ error: "Missing bearer token" }, 401);
     }
@@ -67,11 +72,13 @@ Deno.serve(async (req) => {
     const isCompanyAdmin = callerProfile.role === "admin" || callerProfile.role_base === "admin";
     if (!isMaster && !isCompanyAdmin) return json({ error: "Permission denied" }, 403);
 
-    const body = (await req.json()) as { nome?: string; email?: string; role?: RoleInput; company_id?: string };
+    const body = (await req.json()) as { nome?: string; email?: string; role?: string; company_id?: string };
     const nome = (body.nome || "").trim();
     const email = (body.email || "").trim().toLowerCase();
-    const role: RoleInput = body.role || "tecnico";
+    const role = (body.role || "tecnico").trim().toLowerCase() as RoleInput;
     if (!nome || !email) return json({ error: "Nome e e-mail sao obrigatorios" }, 400);
+    if (!isValidEmail(email)) return json({ error: "E-mail invalido" }, 400);
+    if (!ALLOWED_ROLES.has(role)) return json({ error: "Perfil de acesso invalido" }, 400);
 
     const companyId = isMaster ? body.company_id || null : callerProfile.company_id;
     if (!companyId) return json({ error: "company_id obrigatorio para convite master ou usuario sem empresa" }, 400);

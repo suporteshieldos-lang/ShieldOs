@@ -185,6 +185,11 @@ export default function Customers() {
 
   return (
     <div className="premium-page">
+      <section className="saas-card">
+        <h2 className="saas-title">Clientes</h2>
+        <p className="saas-subtitle">Gestão de relacionamento, histórico de OS e perfil financeiro por cliente.</p>
+      </section>
+
       <div className="premium-toolbar flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-[420px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -209,7 +214,7 @@ export default function Customers() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className="cursor-pointer rounded-2xl border border-[#E2EAF4] bg-white/95 p-5 shadow-[0_8px_24px_rgba(15,23,42,0.05)] transition-all hover:-translate-y-0.5 hover:shadow-md"
+            className="saas-card cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md"
             onClick={() => setEditing(customer)}
           >
             <div className="space-y-2">
@@ -233,7 +238,7 @@ export default function Customers() {
           </motion.div>
         ))}
         {regularCustomers.length === 0 && genericCustomers.length === 0 && (
-          <div className="col-span-full rounded-2xl border border-dashed border-[#D7E3F2] bg-white/60 py-14 text-center text-muted-foreground">
+          <div className="col-span-full rounded-2xl border border-dashed border-[#D7E3F2] bg-white py-14 text-center text-muted-foreground">
             Nenhum cliente encontrado.
           </div>
         )}
@@ -248,7 +253,7 @@ export default function Customers() {
                 key={customer.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="cursor-pointer rounded-2xl border border-dashed border-[#D7E3F2] bg-white/60 p-5 transition-colors hover:bg-white"
+                className="saas-card-soft cursor-pointer border-dashed transition-colors hover:bg-white"
                 onClick={() => setEditing(customer)}
               >
                 <div className="space-y-2">

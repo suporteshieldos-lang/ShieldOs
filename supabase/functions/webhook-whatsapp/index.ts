@@ -68,6 +68,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "method_not_allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   try {
     const secret = Deno.env.get("WHATSAPP_WEBHOOK_SECRET");
@@ -91,6 +97,12 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    if (!supabaseUrl || !serviceRole) {
+      return new Response(JSON.stringify({ error: "function_misconfigured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const supabase = createClient(supabaseUrl, serviceRole, {
       auth: { persistSession: false },
     });
@@ -128,4 +140,3 @@ Deno.serve(async (req) => {
     });
   }
 });
-
