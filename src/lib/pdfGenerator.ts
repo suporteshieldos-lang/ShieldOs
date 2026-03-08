@@ -378,7 +378,7 @@ export async function generateRepairOrderPDF(order: RepairOrder, responsibilityT
   doc.setFontSize(7);
   doc.text(`OS Nº: ${orderCode}`, pageW - margin, 12, { align: "right" });
 
-  let termY = 28;
+  const termY = 28;
   doc.setTextColor(...DARK);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.1);
